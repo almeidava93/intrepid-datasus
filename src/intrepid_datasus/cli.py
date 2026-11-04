@@ -346,7 +346,7 @@ def _print_result(con, sql: str, max_rows: int) -> None:
 
 
 # Columns that hold codes or months: print them as-is, without thousands separators.
-_ID_LIKE = re.compile(r"competencia|^ano|year|^mes|month|cod|_id$|^id|cnes|ibge|mun|cid|cbo|uf", re.I)
+_ID_LIKE = re.compile(r"competencia|versao|^ano|year|^mes|month|cod|_id$|^id|cnes|ibge|mun|cid|cbo|uf", re.I)
 
 
 def _cell(v, plain: bool = False) -> str:
@@ -497,6 +497,115 @@ def remove(
         err.print(f"[red]{ex}[/]")
         raise typer.Exit(1)
     console.print(f"Removed {len(keys):,} state-months ({human(freed)}).")
+
+
+# ------------------------------------------------------------------- sigtap
+sigtap_app = typer.Typer(
+    help="SIGTAP procedure table: names, groups, prices and rules for every procedure code.",
+    no_args_is_help=True,
+)
+app.add_typer(sigtap_app, name="sigtap")
+
+
+def _sigtap_versions(start: str | None, end: str | None, yearly: bool):
+    from . import sigtap
+
+    try:
+        s = catalog.parse_period(start, is_end=False) if start else None
+        e = catalog.parse_period(end, is_end=True) if end else (catalog.parse_period(start, is_end=True) if start and not yearly else None)
+    except ValueError as ex:
+        raise typer.BadParameter(str(ex)) from None
+    with console.status("Listing SIGTAP versions on ftp2.datasus.gov.br ..."):
+        versions = sigtap.list_versions()
+    if not versions:
+        err.print("[red]No SIGTAP versions found on the FTP.[/]")
+        raise typer.Exit(1)
+    if s is None and e is None:
+        return versions, [versions[-1]]  # default: the latest version only
+    return versions, sigtap.pick(versions, s, e, yearly)
+
+
+@sigtap_app.command("fetch")
+def sigtap_fetch(
+    ctx: typer.Context,
+    start: FromOpt = None,
+    end: ToOpt = None,
+    yearly: Annotated[bool, typer.Option(help="Only the last version of each year in the range.")] = False,
+    force: Annotated[bool, typer.Option(help="Re-download versions already stored.")] = False,
+):
+    """Download SIGTAP versions (about 2 MB each). Default: the latest version.
+
+    Codes are retired over time, so to name every code in older data fetch past
+    versions too, e.g.:  datasus sigtap fetch --from 2008 --yearly
+    """
+    from .sigtap import SigtapStore
+
+    st = SigtapStore(_store(ctx).root)
+    _, chosen = _sigtap_versions(start, end, yearly)
+    todo = [v for v in chosen if force or not st.has(v)]
+    console.print(f"{len(chosen)} version(s) selected, {len(chosen) - len(todo)} already stored, "
+                  f"{len(todo)} to fetch ({human(sum(v.size for v in todo))}).")
+    failed = 0
+    for v in todo:
+        try:
+            counts = st.fetch(v)
+        except Exception as ex:
+            failed += 1
+            err.print(f"[red]✗[/] {fmt_comp(v.competencia)}: {ex}")
+            continue
+        console.print(f"[green]✓[/] {fmt_comp(v.competencia)}: {counts.get('tb_procedimento', 0):,} procedures, "
+                      f"{len(counts)} tables")
+    if failed:
+        raise typer.Exit(1)
+
+
+@sigtap_app.command("available")
+def sigtap_available(
+    ctx: typer.Context,
+    start: FromOpt = None,
+    end: ToOpt = None,
+):
+    """List SIGTAP versions on the FTP and which ones are stored locally."""
+    from .sigtap import SigtapStore
+
+    st = SigtapStore(_store(ctx).root)
+    versions, _ = _sigtap_versions(None, None, False)
+    s = catalog.parse_period(start, is_end=False) if start else 0
+    e = catalog.parse_period(end, is_end=True) if end else 999912
+    stored = st.index()
+    by_year: dict[int, list] = defaultdict(list)
+    for v in versions:
+        if s <= v.competencia <= e:
+            by_year[v.competencia // 100].append(v)
+    t = Table(title="SIGTAP versions")
+    for c in ("Year", "Versions", "From", "To", "Stored locally"):
+        t.add_column(c)
+    for y in sorted(by_year):
+        vs = by_year[y]
+        have = [fmt_comp(v.competencia) for v in vs if str(v.competencia) in stored]
+        t.add_row(str(y), str(len(vs)), fmt_comp(vs[0].competencia), fmt_comp(vs[-1].competencia),
+                  ", ".join(have) if have else "-")
+    console.print(t)
+
+
+@sigtap_app.command("search")
+def sigtap_search(
+    ctx: typer.Context,
+    text: Annotated[str, typer.Argument(help="Words in the name (accents and case ignored) or a code prefix, e.g. 'teleconsulta' or 030101.")],
+    max_rows: Annotated[int, typer.Option(help="Rows shown.")] = 50,
+):
+    """Find procedures by name or code."""
+    con = q.connect(_store(ctx))
+    if "procedimentos" not in q.views(con):
+        err.print("No SIGTAP data yet. Run: datasus sigtap fetch")
+        raise typer.Exit(1)
+    if text.isdigit():
+        where = f"codigo LIKE '{text}%'"
+    else:
+        words = [w.replace("'", "''") for w in text.split()]
+        where = " AND ".join(f"strip_accents(lower(nome)) LIKE '%' || strip_accents(lower('{w}')) || '%'" for w in words)
+    _print_result(con, f"""SELECT codigo, nome, complexidade, financiamento, valor_ambulatorial,
+        primeira_versao, ultima_versao, ativo FROM procedimentos WHERE {where} ORDER BY codigo""", max_rows)
 
 
 if __name__ == "__main__":

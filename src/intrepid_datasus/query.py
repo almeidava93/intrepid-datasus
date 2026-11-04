@@ -5,6 +5,7 @@ Views:
     pa_legacy   1994-2007, same casting
     pa_raw / pa_legacy_raw   everything as text, exactly as stored
     ufs         state code, IBGE code, name and region
+    procedimentos, cid10, ocupacoes, sigtap_*   SIGTAP lookups (after `datasus sigtap fetch`)
 """
 from __future__ import annotations
 
@@ -13,6 +14,7 @@ from pathlib import Path
 import duckdb
 
 from .catalog import ERAS, STATES
+from .sigtap import SigtapStore
 from .store import Store
 
 QUANTITY_COLS = ["PA_QTDPRO", "PA_QTDAPR"]
@@ -55,7 +57,84 @@ def connect(store: Store, memory_limit: str | None = None, threads: int | None =
     rows = ", ".join(f"('{uf}', '{ibge}', '{name.replace(chr(39), chr(39) * 2)}', '{reg}')"
                      for uf, (ibge, name, reg) in STATES.items())
     con.execute(f"CREATE TABLE ufs AS SELECT * FROM (VALUES {rows}) t(uf, ibge, nome, regiao)")
+    _sigtap_views(con, store)
     return con
+
+
+def _sigtap_views(con: duckdb.DuckDBPyConnection, store: Store) -> None:
+    """sigtap_<table>_all: every fetched version (column competencia).
+    sigtap_<table>: for tb_* tables, the most recent row of each code (with first/last
+    version seen and whether it is still active); for rl_* tables, the latest version.
+    Plus friendly views: procedimentos, cid10, ocupacoes."""
+    st = SigtapStore(store.root)
+    tables = st.tables()
+    if not tables:
+        return
+    base = _sql_path(st.dir)
+    for t in tables:
+        short = t[3:] if t.startswith("tb_") else t
+        con.execute(
+            f"CREATE VIEW sigtap_{short}_all AS SELECT * FROM read_parquet('{base}/competencia=*/{t}.parquet', "
+            "hive_partitioning = true, union_by_name = true, hive_types = {'competencia': 'INTEGER'})"
+        )
+        cols = [r[0] for r in con.execute(f"DESCRIBE sigtap_{short}_all").fetchall()]
+        keys = []
+        for c in cols:
+            if not c.startswith("CO_"):
+                break
+            keys.append(c)
+        if t.startswith("tb_") and keys:
+            k = ", ".join(keys)
+            con.execute(f"""CREATE VIEW sigtap_{short} AS
+                SELECT * EXCLUDE (competencia, rn, first_seen, last_seen),
+                       first_seen AS primeira_versao, last_seen AS ultima_versao,
+                       last_seen = (SELECT MAX(competencia) FROM sigtap_{short}_all) AS ativo
+                FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY {k} ORDER BY competencia DESC) rn,
+                             MIN(competencia) OVER (PARTITION BY {k}) first_seen,
+                             MAX(competencia) OVER (PARTITION BY {k}) last_seen
+                      FROM sigtap_{short}_all)
+                WHERE rn = 1""")
+        else:
+            con.execute(f"""CREATE VIEW sigtap_{short} AS SELECT * EXCLUDE (competencia)
+                FROM sigtap_{short}_all WHERE competencia = (SELECT MAX(competencia) FROM sigtap_{short}_all)""")
+
+    have = set(tables)
+    if "tb_procedimento" in have:
+        pcols = {r[0] for r in con.execute("DESCRIBE sigtap_procedimento").fetchall()}
+
+        def lookup(table: str, sql: str) -> str:
+            return sql if table in have else "NULL"
+
+        def col(name: str, sql: str) -> str:
+            return sql if name in pcols else "NULL"
+
+        con.execute(f"""CREATE VIEW procedimentos AS
+            SELECT p.CO_PROCEDIMENTO AS codigo, p.NO_PROCEDIMENTO AS nome,
+                   LEFT(p.CO_PROCEDIMENTO, 2) AS grupo_cod,
+                   {lookup('tb_grupo', 'g.NO_GRUPO')} AS grupo,
+                   {lookup('tb_sub_grupo', 's.NO_SUB_GRUPO')} AS subgrupo,
+                   {lookup('tb_forma_organizacao', 'f.NO_FORMA_ORGANIZACAO')} AS forma_organizacao,
+                   {col('TP_COMPLEXIDADE', '''CASE p.TP_COMPLEXIDADE WHEN '0' THEN 'Não se aplica'
+                        WHEN '1' THEN 'Atenção Básica' WHEN '2' THEN 'Média Complexidade'
+                        WHEN '3' THEN 'Alta Complexidade' ELSE p.TP_COMPLEXIDADE END''')} AS complexidade,
+                   {col('CO_FINANCIAMENTO', 'p.CO_FINANCIAMENTO')} AS financiamento_cod,
+                   {lookup('tb_financiamento', 'fi.NO_FINANCIAMENTO')} AS financiamento,
+                   {col('TP_SEXO', 'p.TP_SEXO')} AS sexo,
+                   {col('VL_IDADE_MINIMA', 'TRY_CAST(p.VL_IDADE_MINIMA AS INTEGER)')} AS idade_minima_meses,
+                   {col('VL_IDADE_MAXIMA', 'TRY_CAST(p.VL_IDADE_MAXIMA AS INTEGER)')} AS idade_maxima_meses,
+                   {col('VL_SA', 'TRY_CAST(p.VL_SA AS DOUBLE) / 100')} AS valor_ambulatorial,
+                   {col('VL_SH', 'TRY_CAST(p.VL_SH AS DOUBLE) / 100')} AS valor_hospitalar,
+                   {col('VL_SP', 'TRY_CAST(p.VL_SP AS DOUBLE) / 100')} AS valor_profissional,
+                   p.primeira_versao, p.ultima_versao, p.ativo
+            FROM sigtap_procedimento p
+            {"LEFT JOIN sigtap_grupo g ON g.CO_GRUPO = LEFT(p.CO_PROCEDIMENTO, 2)" if 'tb_grupo' in have else ""}
+            {"LEFT JOIN sigtap_sub_grupo s ON s.CO_GRUPO || s.CO_SUB_GRUPO = LEFT(p.CO_PROCEDIMENTO, 4)" if 'tb_sub_grupo' in have else ""}
+            {"LEFT JOIN sigtap_forma_organizacao f ON f.CO_GRUPO || f.CO_SUB_GRUPO || f.CO_FORMA_ORGANIZACAO = LEFT(p.CO_PROCEDIMENTO, 6)" if 'tb_forma_organizacao' in have else ""}
+            {"LEFT JOIN sigtap_financiamento fi ON fi.CO_FINANCIAMENTO = p.CO_FINANCIAMENTO" if 'tb_financiamento' in have else ""}""")
+    if "tb_cid" in have:
+        con.execute("CREATE VIEW cid10 AS SELECT CO_CID AS codigo, NO_CID AS nome, TP_SEXO AS sexo, ativo FROM sigtap_cid")
+    if "tb_ocupacao" in have:
+        con.execute("CREATE VIEW ocupacoes AS SELECT CO_OCUPACAO AS codigo, NO_OCUPACAO AS nome, ativo FROM sigtap_ocupacao")
 
 
 def views(con: duckdb.DuckDBPyConnection) -> list[str]:

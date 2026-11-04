@@ -127,9 +127,9 @@ class _PasvFixFTP(ftplib.FTP):
         return self.sock.getpeername()[0], port
 
 
-def connect(timeout: int = 120) -> ftplib.FTP:
+def connect(timeout: int = 120, host: str = FTP_HOST) -> ftplib.FTP:
     ftp = _PasvFixFTP()
-    ftp.connect(FTP_HOST, 21, timeout=timeout)
+    ftp.connect(host, 21, timeout=timeout)
     ftp.login()
     ftp.set_pasv(True)
     return ftp
