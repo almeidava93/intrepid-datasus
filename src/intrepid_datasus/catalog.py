@@ -157,7 +157,12 @@ AD = FileType("AD", "APAC Laudos Diversos", (
         quantity_cols=dictionary.AD_QUANTITY_COLS, value_cols=dictionary.AD_VALUE_COLS),
 ), parquet_ratio=0.58)  # all 6,046 files: 1.90 GB Parquet / 3.25 GB .dbc
 
-REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA, BI, AM, AQ, AR, AD)}
+ATD = FileType("ATD", "APAC Tratamento Dialítico", (
+    Era("atd", FTP_CURRENT_DIR, 201408, 999912, dictionary.ATD,
+        quantity_cols=dictionary.ATD_QUANTITY_COLS, value_cols=dictionary.ATD_VALUE_COLS),
+), parquet_ratio=0.75)  # all 3,911 files: 0.79 GB Parquet / 1.06 GB .dbc
+
+REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA, BI, AM, AQ, AR, AD, ATD)}
 DEFAULT_TABLES = ("PA",)  # what the CLI uses when --table is not given
 
 

@@ -43,6 +43,7 @@ nav:
       - aq (APAC Quimioterapia): tables/aq.md
       - ar (APAC Radioterapia): tables/ar.md
       - ad (APAC Laudos Diversos): tables/ad.md
+      - atd (APAC Tratamento Dialítico): tables/atd.md
       - Lookup tables: tables/lookups.md
       - SIGTAP tables: tables/sigtap.md
   - API reference:

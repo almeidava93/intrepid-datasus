@@ -11,8 +11,8 @@ month in one file type per kind of request form (*laudo*):
 | AQ | Chemotherapy (oncology) | [`aq`](aq.md) | supported |
 | AR | Radiotherapy (oncology) | [`ar`](ar.md) | supported |
 | AD | Diverse requests (*laudos diversos*): eye, cardiology, hearing, ostomy, orthopaedic aids, transplant follow-up, ... | [`ad`](ad.md) | supported |
-| ATD | Dialysis (from Aug/2014) | | planned |
-| AN | Nephrology (until Oct/2014; replaced by ATD) | | planned |
+| ATD | Dialysis (from Aug/2014) | [`atd`](atd.md) | supported |
+| AN | Nephrology (until Jul/2014, late bills to Oct/2014; replaced by ATD, see [the transition](atd.md#from-an-to-atd-2014)) | | planned |
 | AB | Bariatric surgery follow-up | | planned |
 | ABO | Post-bariatric surgery follow-up | | planned |
 | ACF | Arteriovenous fistula creation | | planned |
@@ -84,11 +84,12 @@ files carry no quantity column, so for quantities use `pa`.
   rows over a quarter counts most APACs up to three times.
 - **Patients:** `COUNT(DISTINCT AP_CNSPCN)`. The CNS is encoded by DATASUS (non-digit
   characters), consistently within the data, so it identifies a patient across months and
-  APAC types but cannot be linked to other systems. In AQ, AR and AD it is **empty or a
+  APAC types but cannot be linked to other systems. In AQ, AR, AD and ATD it is **empty or a
   placeholder** (`{{{{{{{{{{{{{{{`) on a growing share of rows since 2024 (see
   [aq](aq.md#following-a-patient); in AR 95% of all rows by Aug/2026, see
   [ar](ar.md#following-a-patient); in AD 67% in Aug/2026, see
-  [ad](ad.md#patients)); check the type's page before counting patients.
+  [ad](ad.md#patients); in ATD 96% in Aug/2026, see [atd](atd.md#patients)); check the
+  type's page before counting patients.
 
 ## Shared columns
 
@@ -159,7 +160,7 @@ files and can differ slightly between types.
 | `AP_UFNACIO` | 3 | Nationality code. | `010` = Brazilian. |
 | `AP_CEPPCN` | 8 | Postcode (CEP) of the patient. | |
 | `AP_UFDIF` | 2 | Patient's state differs from the facility's: `0` same, `1` different. | |
-| `AP_MNDIF` | 2 | Patient's municipality differs from the facility's: `0` same, `1` different. | **Always `1` in AM, AQ, AR and AD** even when they are equal; compare `AP_MUNPCN` with `AP_UFMUN` instead. |
+| `AP_MNDIF` | 2 | Patient's municipality differs from the facility's: `0` same, `1` different. | **Always `1` in AM, AQ, AR, AD and ATD** even when they are equal; compare `AP_MUNPCN` with `AP_UFMUN` instead. |
 
 ### Diagnosis
 
