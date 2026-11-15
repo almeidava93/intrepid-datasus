@@ -37,6 +37,7 @@ nav:
       - Overview: tables/index.md
       - pa (2008 onward): tables/pa.md
       - pa_legacy (1994–2007): tables/pa_legacy.md
+      - bi (BPA Individualizado): tables/bi.md
       - Lookup tables: tables/lookups.md
       - SIGTAP tables: tables/sigtap.md
   - API reference:

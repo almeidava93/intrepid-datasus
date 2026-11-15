@@ -73,7 +73,7 @@ def test_type_rejects_other_names(registry, code, name):
 
 
 def test_group_keeps_tables_apart(registry):
-    files = [c.parse_name(n, 1) for n in ("PAAC2605.dbc", "BIAC2605.dbc", "BIAC2605b.dbc")]
+    files = [c.parse_name(n, 1) for n in ("PAAC2605.dbc", "BIAC2605_1.dbc", "BIAC2605_2.dbc")]
     parts = c.group(files)
     assert [(p.key, len(p.files)) for p in parts] == [("BI/AC/202605", 2), ("PA/AC/202605", 1)]
     assert parts[0].era.key == "bi" and parts[1].era.key == "pa"
@@ -191,7 +191,7 @@ def test_cli_fetch_and_available_pass_tables(store, monkeypatch):
 
     def fake_list(types, start, end):
         seen.append(([t.code for t in types], start, end))
-        return [f for f in (c.parse_name(n, 10) for n in ("PAAC2605.dbc", "BIAC2605.dbc", "BIAC2605b.dbc"))
+        return [f for f in (c.parse_name(n, 10) for n in ("PAAC2605.dbc", "BIAC2605_1.dbc", "BIAC2605_2.dbc"))
                 if f.table in {t.code for t in types}]
 
     monkeypatch.setattr(c, "list_remote", fake_list)
@@ -202,7 +202,7 @@ def test_cli_fetch_and_available_pass_tables(store, monkeypatch):
     r = run(store, "fetch", "-T", "pa,bi", "-s", "AC", "-f", "202605", "--dry-run")
     assert seen[-1][0] == ["PA", "BI"]
     # BI AC 2026-05 is stored but its files changed (now split in two): refetched
-    assert "BI AC 2026-05" in r.output and "BIAC2605b.dbc" in r.output
+    assert "BI AC 2026-05" in r.output and "BIAC2605_2.dbc" in r.output
     r = run(store, "available", "-T", "bi", "-s", "AC")
     assert r.exit_code == 0, r.output
     assert seen[-1] == (["BI"], 0, 999912) and "bi (test BI)" in r.output

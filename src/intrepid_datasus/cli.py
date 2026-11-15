@@ -189,7 +189,7 @@ def fetch(
     revised (file sizes changed, or re-split into parts) are rebuilt.
 
     Examples:  datasus fetch -s SP -f 2025      datasus fetch -s all -f 202401 -t 202406
-               datasus fetch -T all -s AC -f 202605
+               datasus fetch -T all -s AC -f 202605      datasus fetch -T bi -s AC -f 2026
     """
     store = _store(ctx)
     types = _tables(table)

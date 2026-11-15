@@ -89,6 +89,7 @@ Tables available in SQL:
 | `pa` | 2008 onward (SIGTAP procedure codes). Quantities as `BIGINT`, values as `DOUBLE`. |
 | `pa_legacy` | 1994–2007 (old layout and procedure table — different columns). |
 | `pa_raw`, `pa_legacy_raw` | Same, every column as text, exactly as DATASUS publishes it. |
+| `bi`, `bi_raw` | BPA Individualizado (`-T bi`, 2008 onward): one row per patient appointment, with age, sex, residence and diagnosis. Same rows as `pa WHERE PA_DOCORIG = 'I'` — don't add the two. |
 | `ufs` | State code, IBGE code, name and region — join on `uf`. |
 | `procedimentos` | SIGTAP procedure names, group, complexity, funding, price — join `PA_PROC_ID = codigo`. |
 | `cid10`, `ocupacoes` | ICD-10 and CBO (occupation) names — join on `PA_CIDPRI` / `PA_CBOCOD`. |

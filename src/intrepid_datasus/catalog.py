@@ -64,13 +64,16 @@ class RemoteFile:
     size: int
     uf: str
     competencia: int
-    part: str  # "" for a single file, "a", "b", ... for split states
+    part: str  # "" for a single file; "a", "b", ... (PA) or "1", "2", ... (BI, "_1") for split states
     table: str = "PA"  # file type code
 
 
 @dataclass(frozen=True)
 class FileType:
-    """One SIA file type (PA, BI, ATD, ...), files named ``<CODE><UF><YY><MM>[part].dbc``."""
+    """One SIA file type (PA, BI, ATD, ...), files named ``<CODE><UF><YY><MM>[part].dbc``.
+
+    ``part`` is empty for a whole file, or a letter (``PASP2605a.dbc``) or ``_<n>``
+    (``BISP2605_1.dbc``) when DATASUS splits a large state into several files."""
     code: str                 # 2-3 capital letters, as in the file names
     name: str                 # what DATASUS calls it
     eras: tuple[Era, ...]     # oldest first, not overlapping
@@ -82,7 +85,7 @@ class FileType:
         # The UF is always exactly two letters right before four digits, so one code can
         # never match another's files (AM vs AMP, AB vs ABO): the lengths would not add up.
         object.__setattr__(self, "_re", re.compile(
-            rf"^{self.code}([A-Z]{{2}})(\d{{2}})(\d{{2}})([A-Z]?)\.DBC$", re.IGNORECASE))
+            rf"^{self.code}([A-Z]{{2}})(\d{{2}})(\d{{2}})(?:([A-Z])|_(\d{{1,2}}))?\.DBC$", re.IGNORECASE))
 
     @property
     def first(self) -> int:
@@ -103,7 +106,8 @@ class FileType:
         raise ValueError(f"{self.code} has no layout for {comp}")
 
     def parse(self, name: str, size: int = 0) -> RemoteFile | None:
-        """'PASP2605b.dbc' -> RemoteFile(uf='SP', competencia=202605, part='b', table='PA')."""
+        """'PASP2605b.dbc' -> RemoteFile(uf='SP', competencia=202605, part='b', table='PA');
+        'BISP2605_2.dbc' -> part='2'."""
         m = self._re.match(name)
         if not m:
             return None
@@ -114,7 +118,8 @@ class FileType:
         if not 1 <= mm <= 12:
             return None
         year = 1900 + yy if yy >= 90 else 2000 + yy
-        return RemoteFile(name, size, uf, year * 100 + mm, m.group(4).lower(), self.code)
+        part = (m.group(4) or m.group(5) or "").lower()
+        return RemoteFile(name, size, uf, year * 100 + mm, part, self.code)
 
 
 # ------------------------------------------------------------------ registry
@@ -127,7 +132,12 @@ PA = FileType("PA", "Produção Ambulatorial", (
         quantity_cols=dictionary.PA_QUANTITY_COLS, value_cols=dictionary.PA_VALUE_COLS),
 ))
 
-REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA,)}
+BI = FileType("BI", "BPA Individualizado", (
+    Era("bi", FTP_CURRENT_DIR, 200801, 999912, dictionary.BI,
+        quantity_cols=dictionary.BI_QUANTITY_COLS, value_cols=dictionary.BI_VALUE_COLS),
+), parquet_ratio=0.43)  # AC May/2026: 0.41; SP Aug/2026 part 1: 0.45
+
+REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA, BI)}
 DEFAULT_TABLES = ("PA",)  # what the CLI uses when --table is not given
 
 
@@ -182,14 +192,26 @@ class Partition:
         return {f.name: f.size for f in self.files}
 
 
+def _part_order(f: RemoteFile) -> tuple[int, str]:
+    return len(f.part), f.part  # '', 'a', 'b', ... / '1', '2', ..., '10'
+
+
 def group(files: list[RemoteFile]) -> list[Partition]:
+    """Group files into partitions (one per file type, state and month).
+
+    When the FTP holds both a whole file and split parts for the same month (BI SP/MG/RJ
+    2023-05 to 2024-02 have ``BISP2305.dbc`` *and* ``BISP2305_1.dbc``, ``_2``), the parts
+    are the newer, complete publication and the whole file is dropped: keeping both would
+    count every row twice."""
     by: dict[tuple[str, str, int], list[RemoteFile]] = defaultdict(list)
     for f in files:
         by[(f.table, f.uf, f.competencia)].append(f)
-    return [
-        Partition(uf, comp, tuple(sorted(fs, key=lambda f: f.part)), table)
-        for (table, uf, comp), fs in sorted(by.items(), key=lambda kv: (kv[0][0], kv[0][2], kv[0][1]))
-    ]
+    out = []
+    for (table, uf, comp), fs in sorted(by.items(), key=lambda kv: (kv[0][0], kv[0][2], kv[0][1])):
+        if any(f.part for f in fs):
+            fs = [f for f in fs if f.part]
+        out.append(Partition(uf, comp, tuple(sorted(fs, key=_part_order)), table))
+    return out
 
 
 def _parse_list_line(line: str) -> tuple[str, int] | None:

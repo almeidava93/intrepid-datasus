@@ -18,6 +18,9 @@ by SIA/SUS in a given month. What a row stands for depends on the record instrum
 | `A` | RAAS-AD — home care (*Atenção Domiciliar*) | procedure | Yes |
 | `B` | RAAS-PSI — psychosocial care | procedure | Yes |
 
+The `I` rows are also published, with a few more patient columns, as their own file type:
+see [bi](bi.md). Don't add `bi` to `pa`, it would count them twice.
+
 !!! warning "Sum quantities, don't count rows"
     One BPA-C row can represent thousands of procedures. Use `SUM(PA_QTDAPR)`.
     Consolidated (`C`) rows have no age, sex, diagnosis or residence — about half of all

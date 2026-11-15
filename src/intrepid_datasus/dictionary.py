@@ -109,3 +109,67 @@ PA_LEGACY = {
     "PA_NUMAPA": "APAC number.",
     "PA_MORFOL": "Tumour morphology (oncology).",
 }
+
+# ------------------------------------------------------------------- BI
+# BPA Individualizado (BPA-I), files BI<UF><YY><MM>.dbc, Jan/2008 onward. One layout; NAT_JUR
+# was added in Jul/2016 (NULL before). Source: DATASUS, "Informe Técnico SIASUS" (Jul/2019),
+# section 5.2 "Layout do arquivo de BPA-I: BIUFAAMM.DBF",
+# ftp://ftp.datasus.gov.br/dissemin/publicos/SIASUS/200801_/Doc/Informe_Tecnico_SIASUS_2019_07.pdf
+# Code lists noted below were checked against the AC May/2026 file. BI rows are the PA rows
+# with PA_DOCORIG = 'I' (same rows, quantities and values), so never sum bi and pa together.
+BI_QUANTITY_COLS = ("QT_APRES", "QT_APROV")
+BI_VALUE_COLS = ("VL_APRES", "VL_APROV")
+
+BI = {
+    **PARTITION,
+    "competencia": "Partition: month of the file (YYYYMM). Equals DT_PROCESS (processing month).",
+    "uf": "Partition: state of the file (SP, RJ, ...). Same as the facility's state.",
+    "_ARQUIVO_ORIGEM": "Original DATASUS file this row came from (e.g. BIAC2605.dbc, BISP2605_1.dbc).",
+    "CODUNI": "Facility code (CNES, 7 digits). Same as PA_CODUNI.",
+    "GESTAO": "Managing authority: UF code + IBGE municipality code of the manager, or UF + '0000' "
+              "when the facility is under state management.",
+    "CONDIC": "Type of management the state/municipality is qualified for (values seen: EP, PG).",
+    "UFMUN": "Municipality of the FACILITY (IBGE, 6 digits). First 2 digits = state.",
+    "TPUPS": "Facility type, CNES codes (e.g. 02 = health centre, 05 = general hospital, "
+             "36 = specialised clinic, 39 = diagnostic unit, 73 = emergency unit).",
+    "TIPPRE": "Provider type.",
+    "MN_IND": "Facility is maintained by a body (M) or independent (I).",
+    "CNPJCPF": "Facility tax ID (CNPJ).",
+    "CNPJMNT": "Maintaining body's CNPJ, or zeros if none.",
+    "CNPJ_CC": "CNPJ of the body paid for the production by transfer of credit (cessão de crédito), or zeros.",
+    "DT_PROCESS": "Processing month (YYYYMM). Same as PA_MVM.",
+    "DT_ATEND": "Month the care was delivered (YYYYMM). Can be earlier than DT_PROCESS for late reports. "
+                "Same as PA_CMP.",
+    "PROC_ID": "Procedure code, SIGTAP table (10 digits). Group = first 2 digits. Joins procedimentos.",
+    "TPFIN": "Funding type (01 = primary care PAB, 04 = FAEC, 05 = MAC incentive, "
+             "06 = MAC medium/high complexity, 07 = health surveillance).",
+    "SUBFIN": "Funding subtype.",
+    "COMPLEX": "Complexity (1 = primary care, 2 = medium, 3 = high, 0 = not applicable).",
+    "AUTORIZ": "BPA-I authorisation number (format UFAATsssssssd). Optional in BPA-I and not checked, "
+               "so often blank or repeated: do not use it as a key.",
+    "CNSPROF": "Professional's national health card (CNS) number.",
+    "CBOPROF": "Professional's occupation code (CBO, 6 characters). Joins ocupacoes.",
+    "CIDPRI": "Main diagnosis, ICD-10 (no dot, e.g. 'I10', 'E119'). '0000' = not informed. Joins cid10.",
+    "CATEND": "Type of care (caráter de atendimento): 01 = elective, 02 = urgent, 03-06 = work/traffic "
+              "accident and other external causes.",
+    "CNS_PAC": "Patient's national health card (CNS), ENCODED by DATASUS (not the real number); "
+               "empty on about half the rows. Same value = same patient within the data; "
+               "cannot be linked to other systems.",
+    "DTNASC": "Patient's date of birth (YYYYMMDD).",
+    "TPIDADEPAC": "Unit of IDADEPAC, computed from the date of birth: 2 = days, 3 = months, "
+                  "4 = years, 5 = 100 years or more (age = 100 + IDADEPAC), 9 = not informed.",
+    "IDADEPAC": "Patient age (2 characters), in the unit given by TPIDADEPAC.",
+    "SEXOPAC": "Patient sex (M, F; I = not informed, rare).",
+    "RACACOR": "Race/colour (01 white, 02 black, 03 brown, 04 yellow, 05 indigenous, 99 not informed).",
+    "MUNPAC": "Municipality where the PATIENT lives (IBGE, 6 digits); the facility's municipality "
+              "when the patient is not identified.",
+    "QT_APRES": "Quantity submitted (number). Sum this, don't count rows.",
+    "QT_APROV": "Quantity approved (number). Sum this, don't count rows.",
+    "VL_APRES": "Value submitted, R$ (number, nominal — not inflation adjusted).",
+    "VL_APROV": "Value approved, R$ (number, nominal — not inflation adjusted).",
+    "UFDIF": "Patient lives in another state than the facility (0 = same, 1 = different).",
+    "MNDIF": "Patient lives in another municipality than the facility (0 = same, 1 = different).",
+    "ETNIA": "Indigenous ethnicity code (Portaria SAS 508/2010, annex I); only when RACACOR = 05, "
+             "from Oct/2010.",
+    "NAT_JUR": "Facility legal nature (natureza jurídica code, IBGE CONCLA table). From Jul/2016; NULL before.",
+}
