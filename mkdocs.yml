@@ -9,6 +9,7 @@ theme:
   name: material
   features:
     - content.code.copy
+    - navigation.tabs
     - navigation.sections
     - navigation.top
     - search.suggest
@@ -25,12 +26,19 @@ theme:
         name: Switch to light mode
 
 nav:
-  - Home: index.md
-  - Fetching data: fetching.md
-  - Querying: querying.md
-  - Procedure names (SIGTAP): sigtap.md
-  - Things to know about the data: data-notes.md
-  - Development: development.md
+  - Guide:
+      - Home: index.md
+      - Fetching data: fetching.md
+      - Querying: querying.md
+      - Procedure names (SIGTAP): sigtap.md
+      - Things to know about the data: data-notes.md
+      - Development: development.md
+  - Tables:
+      - Overview: tables/index.md
+      - pa (2008 onward): tables/pa.md
+      - pa_legacy (1994–2007): tables/pa_legacy.md
+      - Lookup tables: tables/lookups.md
+      - SIGTAP tables: tables/sigtap.md
   - API reference:
       - catalog: reference/catalog.md
       - convert: reference/convert.md

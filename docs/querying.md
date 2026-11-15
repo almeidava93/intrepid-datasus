@@ -13,7 +13,7 @@ uv run datasus status                                   # what's stored locally
 uv run datasus remove -s RR -f 2026                     # delete local data
 ```
 
-Tables available in SQL:
+Tables available in SQL (full column reference in the [Tables](tables/index.md) tab):
 
 | Table | Contents |
 |---|---|
