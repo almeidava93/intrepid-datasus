@@ -23,6 +23,7 @@ Tables available in SQL (full column reference in the [Tables](tables/index.md) 
 | `pa_legacy` | 1994–2007 (old layout and procedure table — different columns). |
 | `pa_raw`, `pa_legacy_raw` | Same, every column as text, exactly as DATASUS publishes it. |
 | `bi`, `bi_raw` | BPA Individualizado (`-T bi`, 2008 onward): one row per patient appointment, with age, sex, residence and diagnosis. Same rows as `pa WHERE PA_DOCORIG = 'I'` — don't add the two. |
+| `am`, `am_raw` | APAC Medicamentos (`-T am`, 2008 onward): one row per APAC for a high-cost medicine per month, with patient, diagnosis, validity and continuation. Same APACs as `pa WHERE PA_DOCORIG = 'P' AND PA_TPFIN = '02'` — don't add the two. |
 | `ufs` | State code, IBGE code, name and region — join on `uf`. |
 | `procedimentos` | SIGTAP procedure names, group, complexity, funding, price — join `PA_PROC_ID = codigo`. |
 | `cid10`, `ocupacoes` | ICD-10 and CBO (occupation) names — join on `PA_CIDPRI` / `PA_CBOCOD`. |

@@ -46,7 +46,10 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
    (PA uses `a`, `b`, ...), and some months have a whole file *and* parts. If you find a
    new naming scheme, extend the regex in `FileType.__post_init__` and add tests. Note the
    first and last month, gaps, and the real total size (the sizes in issue #3 missed BI's
-   `_N` files: 146.6 GB listed, 188 GB real).
+   `_N` files: 146.6 GB listed, 188 GB real). A name prefix also catches other types: files
+   starting with `AM` include every AMP file *and* the AM files of Pará, Paraíba,
+   Pernambuco, Piauí and Paraná (`AMPA2605.dbc`, `AMPE2605.dbc`), so split the listing
+   with the full pattern (`<CODE><UF><YY><MM>`, a real UF), not with `startswith`.
 
    You don't need to download files to see their columns: a `.dbc` starts with the
    uncompressed DBF header (record count at bytes 4–8, then 32-byte field descriptors up
@@ -56,11 +59,52 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
    columns change, the file type needs one era per layout. A column only *added* over time
    (BI's `NAT_JUR`) needs no new era; the views read with `union_by_name` and older months
    show `NULL`. The same trick gives row counts, e.g. to compare a whole file with its parts.
+
+    ```python
+    import struct
+    from intrepid_datasus import catalog
+
+    def probe(name, folder=catalog.FTP_CURRENT_DIR):
+        """(row count, [(column, DBF type, width), ...]) of a .dbc, from its first 8 KB."""
+        ftp = catalog.connect()
+        ftp.cwd(folder)
+        ftp.voidcmd("TYPE I")
+        sock = ftp.transfercmd("RETR " + name)
+        buf = b""
+        while len(buf) < 8192 and (chunk := sock.recv(8192 - len(buf))):
+            buf += chunk
+        sock.close()
+        ftp.sock.close()  # not ftp.abort(): it hangs on this server
+        nrec = struct.unpack("<I", buf[4:8])[0]
+        fields, i = [], 32
+        while buf[i] != 0x0D:
+            f = buf[i:i + 32]
+            fields.append((f[:11].split(b"\0")[0].decode(), chr(f[11]), f[16]))
+            i += 32
+        return nrec, fields
+
+    for yy in range(8, 27):
+        n, cols = probe(f"AMSP{yy:02d}01.dbc")
+        print(yy, n, len(cols))
+    ```
+
+   Some fields are numeric (`N`, e.g. APAC's `AP_VL_AP`); the converter reads every field as
+   text anyway, so this needs no special handling.
 2. **Dictionary** (`dictionary.py`): add `BI = {**PARTITION, "COL": "description", ...}`
    with **every** column of the file, plus `BI_QUANTITY_COLS` and `BI_VALUE_COLS` (columns
    to cast; leave empty tuples if none). Cite the official layout document in a comment
    above the dict (DATASUS *Informe Técnico SIASUS* or the file type's layout PDF in
-   `SIASUS/200801_/Doc`).
+   `SIASUS/200801_/Doc`). The Informe Técnico is a PDF: `pdftotext -layout` (mingw/poppler)
+   then `iconv -f latin1` gives text, but the layout tables come out with the description
+   column shifted against the field names, so map descriptions by order.
+
+   **APAC types** (AM, AQ, AR, AD, ATD, AN, AB, ABO, ACF, AMP) share 46 `AP_` columns.
+   Build the dict with `dictionary.apac("AQ", {...own columns...})`: it adds `PARTITION` and
+   `APAC_COMMON`, and entries in `own` override shared ones (use that for values specific
+   to the type). Columns the type renames or lacks go in `without=(...)` (ABO renames
+   `AP_TIPPRE`, `AP_TPATEN`, `AP_DTOCOR`, `AP_APACANT`). Use `APAC_QUANTITY_COLS` (empty)
+   and `APAC_VALUE_COLS` (`AP_VL_AP`). If a shared description turns out wrong for every
+   type, fix it in `APAC_COMMON`, not in one type's dict.
 3. **Registry** (`catalog.py`): define the file type and add it to `REGISTRY`, keeping the
    order of issue #3 (it is the order of `-T all`, `--help` and the status tables):
 
@@ -92,9 +136,13 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
     - keep `uv run pytest` green. The `FAKE` registry in `test_registry.py` may already
       use your code; it shadows the real entry only inside those tests, so leave it, and
       don't use its `registry` fixture in tests of the real entry. `tests/test_bi.py` is
-      a complete example.
+      a complete example; `tests/test_am.py` is the one for APAC types (it also checks the
+      shared `AP_` columns and that `AMPA2605.dbc` is AM, not AMP).
 5. **Docs:**
-    - a page `docs/tables/<code>.md` (copy the structure of `pa.md`): what the table is,
+    - a page `docs/tables/<code>.md` (copy the structure of `bi.md`, or `am.md` for an APAC
+      type: link to [APAC file types](tables/apac.md) for the `AP_` columns and only list
+      what they hold in your type, then describe your own columns; mark the type as
+      supported in the table at the top of `apac.md`): what the table is,
       what one row is, period covered, download size, every column with meaning and codes,
       joins to `procedimentos`, `cid10`, `ocupacoes`, `ufs`, overlap with PA
       (double-counting risk), known quirks and layout changes, and 2–3 example queries;
@@ -103,7 +151,12 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       table, and extend the join diagram if the table joins the lookups;
     - add the views to the table list in `docs/querying.md` and `README.md`;
     - for overlap with PA, fetch the same state-month of PA and compare row counts and
-      `SUM`s against `pa WHERE PA_DOCORIG = ...` (BI equals `PA_DOCORIG = 'I'` exactly);
+      `SUM`s against `pa WHERE PA_DOCORIG = ...` (BI equals `PA_DOCORIG = 'I'` exactly).
+      For APAC types, join on `AP_AUTORIZ = PA_AUTORIZ` (same `competencia`, `uf`): each
+      APAC row should be one `PA_DOCORIG = 'P'` row, and `AP_VL_AP` the sum of `PA_VALAPR`
+      over its `P` and `S` rows (AM: exact, and AM = `P` rows with `PA_TPFIN = '02'`).
+      Check whether some other column of `pa` (`PA_TPFIN`, the procedure group) picks out
+      exactly your type's rows;
     - check `uv run mkdocs build --strict` (needs `uv sync --group docs`).
 6. **Check for real** with one small state-month, and paste the output in the PR:
 
@@ -117,7 +170,10 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
 
     For a big type, also convert one large file (the biggest SP part) and record download
     and conversion time, peak RAM, temporary DBF size and the Parquet ratio. BI: a 172 MB
-    part with 4.7 M rows took 1.9 GB of RAM and a 1.2 GB temporary DBF.
+    part with 4.7 M rows took 1.9 GB of RAM and a 1.2 GB temporary DBF. AM: the largest
+    file (82 MB, 1.37 M rows) took 28 s and about 1.2 GB of RAM. The temporary DBF is
+    (record length × rows): the record length is 1 + the sum of the field widths from the
+    header probe.
 
 7. **PR** against `main` (or the previous sub-issue's branch while its PR is open) with `Closes #<sub-issue>` in the body, saying which state-month
    was checked.

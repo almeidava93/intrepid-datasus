@@ -173,3 +173,119 @@ BI = {
              "from Oct/2010.",
     "NAT_JUR": "Facility legal nature (natureza jurídica code, IBGE CONCLA table). From Jul/2016; NULL before.",
 }
+
+# ------------------------------------------------------------------- APAC (shared)
+# Columns shared by the APAC file types (AM, AQ, AR, AD, ATD, AN, ACF, AMP, ...): the APAC
+# header, patient and validity fields, all prefixed AP_. Same names, order and meaning in
+# every APAC layout. Source: DATASUS, "Informe Técnico SIASUS" (Jul/2019), section 3.4
+# "Layout dos arquivos de APAC" (3.4.1 AD, 3.4.2 AM, ...),
+# ftp://ftp.datasus.gov.br/dissemin/publicos/SIASUS/200801_/Doc/Informe_Tecnico_SIASUS_2019_07.pdf
+# AP_NATJUR is not in the 2019 document for every type but is in the files from Jul/2016.
+# ABO renames a few of these (AP_TPPRE, AP_TPATEND, AP_DTOOCOR, AP_APACAN): pass them to
+# apac() with their own descriptions and drop the originals with ``without``.
+# What an APAC is (authorisation, validity, continuation, patient): docs/tables/apac.md.
+APAC_QUANTITY_COLS: tuple[str, ...] = ()  # APAC files carry no quantity column
+APAC_VALUE_COLS = ("AP_VL_AP",)
+
+APAC_COMMON = {
+    "AP_MVM": "Processing month (YYYYMM). Normally equals competencia. Same as PA_MVM.",
+    "AP_CONDIC": "Type of management the state/municipality is qualified for (values seen: EP, PG).",
+    "AP_GESTAO": "Managing authority: UF code + IBGE municipality code of the manager, or UF + '0000' "
+                 "when the facility is under state management.",
+    "AP_CODUNI": "Facility code (CNES, 7 digits) of the facility that delivered the care. Same as PA_CODUNI.",
+    "AP_AUTORIZ": "APAC number (13 digits, format UFAATsssssssd: state, year, type, sequence, check digit). "
+                  "Identifies one authorisation; the same number comes back every month the APAC is "
+                  "valid. Joins PA_AUTORIZ.",
+    "AP_CMP": "Month the care was delivered (competência, YYYYMM). Can be earlier than AP_MVM. "
+              "Same as PA_CMP.",
+    "AP_PRIPAL": "Main procedure of the APAC, SIGTAP code (10 digits). Joins procedimentos.",
+    "AP_VL_AP": "Approved value, R$ (number, nominal — not inflation adjusted). For the whole APAC per "
+                "DATASUS; see the table page before summing.",
+    "AP_UFMUN": "Municipality of the FACILITY (IBGE, 6 digits). First 2 digits = state.",
+    "AP_TPUPS": "Facility type, CNES codes (e.g. 05 = general hospital, 36 = specialised clinic, "
+                "43 = pharmacy).",
+    "AP_TIPPRE": "Provider type.",
+    "AP_MN_IND": "Facility is maintained by a body (M) or independent (I).",
+    "AP_CNPJCPF": "Facility tax ID (CNPJ).",
+    "AP_CNPJMNT": "Maintaining body's CNPJ, or zeros if none.",
+    "AP_CNSPCN": "Patient's national health card (CNS), ENCODED by DATASUS (not the real number). "
+                 "Same value = same patient within the data; cannot be linked to other systems.",
+    "AP_COIDADE": "Unit of AP_NUIDADE: 2 = days, 3 = months, 4 = years, 5 = 100 years or more "
+                  "(age = 100 + AP_NUIDADE), 9 = not informed.",
+    "AP_NUIDADE": "Patient age (2 characters), in the unit given by AP_COIDADE.",
+    "AP_SEXO": "Patient sex (M, F).",
+    "AP_RACACOR": "Race/colour (01 white, 02 black, 03 brown, 04 yellow, 05 indigenous, 99 not informed).",
+    "AP_MUNPCN": "Municipality where the PATIENT lives (IBGE, 6 digits).",
+    "AP_UFNACIO": "Patient nationality code (010 = Brazilian).",
+    "AP_CEPPCN": "Postcode (CEP) of the patient's address.",
+    "AP_UFDIF": "Patient lives in another state than the facility (0 = same, 1 = different).",
+    "AP_MNDIF": "Patient lives in another municipality than the facility (0 = same, 1 = different). "
+                "Unreliable in some types (always 1 in AM): compare AP_MUNPCN with AP_UFMUN instead.",
+    "AP_DTINIC": "Start of the APAC's validity period (YYYYMMDD).",
+    "AP_DTFIM": "End of the APAC's validity period (YYYYMMDD); up to 3 months after AP_DTINIC.",
+    "AP_TPATEN": "APAC type of care (tipo de atendimento / laudo); fixed per file type.",
+    "AP_TPAPAC": "1 = initial APAC (first month), 2 = continuation (later months of the same "
+                 "authorisation), 3 = single (one month only).",
+    "AP_MOTSAI": "Reason for exit or continuation (motivo de saída/permanência): 1x = discharge "
+                 "(11 cured, 12 improved, 16 evasion, 18 other), 2x = continues (21 nature of the disease, "
+                 "28 other reasons), 31 = transfer, 4x = death, 51 = closed administratively.",
+    "AP_OBITO": "Death (1 = yes).",
+    "AP_ENCERR": "APAC closed (1 = yes).",
+    "AP_PERMAN": "Patient continues (1 = yes).",
+    "AP_ALTA": "Discharge (1 = yes).",
+    "AP_TRANSF": "Transfer (1 = yes).",
+    "AP_DTOCOR": "Date of the event (death, discharge, ...) that replaces the end of validity (YYYYMMDD).",
+    "AP_CODEMI": "Issuing body (órgão emissor) that authorised the APAC: 'E' + state IBGE code + "
+                 "'0000001' = state health secretariat; other values ('S' + state code + 7 digits) are other "
+                 "authorising bodies.",
+    "AP_CATEND": "Type of care (caráter de atendimento): 01 = elective, 02 = urgent, 03-06 = work/traffic "
+                 "accident and other external causes.",
+    "AP_APACANT": "Number of the previous APAC (the one this one continues), or zeros. Continuation "
+                  "months normally keep the same AP_AUTORIZ instead, so this is mostly zeros.",
+    "AP_UNISOL": "CNES code of the facility that requested the APAC (zeros when not informed).",
+    "AP_DTSOLIC": "Date the APAC was requested (YYYYMMDD).",
+    "AP_DTAUT": "Date the APAC was authorised (YYYYMMDD).",
+    "AP_CIDCAS": "Associated cause, ICD-10 (no dot), or '0000'. Joins cid10.",
+    "AP_CIDPRI": "Main diagnosis, ICD-10 (no dot, e.g. 'M058'). Joins cid10.",
+    "AP_CIDSEC": "Secondary diagnosis, ICD-10 (no dot), or '0000'. Joins cid10.",
+    "AP_ETNIA": "Indigenous ethnicity code (Portaria SAS 508/2010, annex I); only when AP_RACACOR = 05.",
+    "AP_NATJUR": "Facility legal nature (natureza jurídica code, IBGE CONCLA table). From Jul/2016; NULL before.",
+}
+
+
+def apac(code: str, own: dict[str, str], without: tuple[str, ...] = ()) -> dict[str, str]:
+    """Dictionary of an APAC file type: partition columns, the shared AP_ columns (minus
+    ``without``) and the type's own columns (``own``, which may also override AP_ ones)."""
+    return {
+        **PARTITION,
+        "competencia": "Partition: month of the file (YYYYMM). Equals AP_MVM (processing month).",
+        "uf": "Partition: state of the file (SP, RJ, ...). Same as the facility's state.",
+        "_ARQUIVO_ORIGEM": f"Original DATASUS file this row came from (e.g. {code}SP2605.dbc).",
+        **{k: v for k, v in APAC_COMMON.items() if k not in without},
+        **own,
+    }
+
+
+# ------------------------------------------------------------------- AM
+# APAC de Medicamentos (Componente Especializado da Assistência Farmacêutica), files
+# AM<UF><YY><MM>.dbc, Jan/2008 onward. One layout (AP_NATJUR added Jul/2016). Source:
+# "Informe Técnico SIASUS" (Jul/2019), section 3.4.2 "Layout do arquivo de APAC de
+# medicamentos: AMUFAAMM.DBF" (URL above).
+AM_QUANTITY_COLS = APAC_QUANTITY_COLS
+AM_VALUE_COLS = APAC_VALUE_COLS
+
+AM = apac("AM", {
+    "AP_PRIPAL": "Main medicine of the APAC, SIGTAP procedure code (10 digits, always 0604...). "
+                 "Secondary medicines of the same APAC are only in pa (PA_DOCORIG = 'S'). Joins procedimentos.",
+    "AP_VL_AP": "Approved value of the whole APAC, R$ (number, nominal): main plus secondary medicines, "
+                "= SUM(PA_VALAPR) of its pa rows. 0 on about 9 rows in 10, mostly medicines with no "
+                "SIGTAP price (bought centrally by the Ministry): not a measure of spending.",
+    "AP_TPATEN": "APAC type of care; always 06 (medicines) in AM.",
+    "AP_MNDIF": "Patient lives in another municipality than the facility. Always 1 in AM (wrong): "
+                "compare AP_MUNPCN with AP_UFMUN instead.",
+    "AM_PESO": "Patient weight in kg.",
+    "AM_ALTURA": "Patient height in cm.",
+    "AM_TRANSPL": "Patient has had a transplant (S = yes, N = no).",
+    "AM_QTDTRAN": "Number of transplants.",
+    "AM_GESTANT": "Patient is pregnant (S = yes, N = no).",
+})
