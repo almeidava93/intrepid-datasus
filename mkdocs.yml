@@ -1,4 +1,5 @@
 site_name: intrepid-datasus
+site_url: https://almeidava93.github.io/intrepid-datasus/
 site_description: Download and query DATASUS SIA/SUS outpatient production data
 repo_url: https://github.com/almeidava93/intrepid-datasus
 repo_name: almeidava93/intrepid-datasus
