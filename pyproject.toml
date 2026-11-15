@@ -31,3 +31,7 @@ testpaths = ["tests"]
 dev = [
     "pytest>=9.2.0",
 ]
+docs = [
+    "mkdocs-material>=9.8.1",
+    "mkdocstrings[python]>=1.0.8",
+]
