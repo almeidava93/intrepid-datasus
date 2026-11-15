@@ -93,6 +93,7 @@ Tables available in SQL:
 | `am`, `am_raw` | APAC Medicamentos (`-T am`, 2008 onward): one row per APAC for a high-cost medicine per month, with patient, diagnosis, validity and continuation. Same APACs as `pa WHERE PA_DOCORIG = 'P' AND PA_TPFIN = '02'` — don't add the two. |
 | `aq`, `aq_raw` | APAC Quimioterapia (`-T aq`, 2008 onward): one row per chemotherapy/hormone therapy APAC per month, with cancer ICD-10, stage, lymph nodes, treatment purpose, scheme and dates. Same APACs as `pa WHERE PA_DOCORIG = 'P'` with procedures `030402`–`030408` — don't add the two. |
 | `ar`, `ar_raw` | APAC Radioterapia (`-T ar`, 2008 onward): one row per radiotherapy APAC per month, with cancer ICD-10, stage, treatment purpose, treated areas, number of fields/insertions and dates. Same APACs as `pa WHERE PA_DOCORIG = 'P'` with procedures `030401` — don't add the two. |
+| `ad`, `ad_raw` | APAC Laudos Diversos (`-T ad`, 2008 onward): one row per APAC per month for the procedures with no laudo of their own: cataract and other eye surgery, eye injections, cardiac catheterisation, hearing diagnosis and aids, transplant follow-up, PET-CT, wheelchairs, and (until 2012) CAPS mental health care. Same APACs as some of the `pa WHERE PA_DOCORIG = 'P'` rows — don't add the two. |
 | `ufs` | State code, IBGE code, name and region — join on `uf`. |
 | `procedimentos` | SIGTAP procedure names, group, complexity, funding, price — join `PA_PROC_ID = codigo`. |
 | `cid10`, `ocupacoes` | ICD-10 and CBO (occupation) names — join on `PA_CIDPRI` / `PA_CBOCOD`. |

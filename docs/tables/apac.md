@@ -10,7 +10,7 @@ month in one file type per kind of request form (*laudo*):
 | AM | Medicines (Componente Especializado da Assistência Farmacêutica) | [`am`](am.md) | supported |
 | AQ | Chemotherapy (oncology) | [`aq`](aq.md) | supported |
 | AR | Radiotherapy (oncology) | [`ar`](ar.md) | supported |
-| AD | Diverse requests (*laudos diversos*) | | planned |
+| AD | Diverse requests (*laudos diversos*): eye, cardiology, hearing, ostomy, orthopaedic aids, transplant follow-up, ... | [`ad`](ad.md) | supported |
 | ATD | Dialysis (from Aug/2014) | | planned |
 | AN | Nephrology (until Oct/2014; replaced by ATD) | | planned |
 | AB | Bariatric surgery follow-up | | planned |
@@ -67,7 +67,7 @@ Join on `AP_CMP = PA_CMP` too: a month's file can hold the same APAC twice, once
 current month and once billed late for an earlier one (AQ, SC May/2026: 6,195 of 22,109 rows
 have `AP_CMP` before `AP_MVM`). `(AP_AUTORIZ, AP_CMP)` is unique within a file.
 
-Checked for AM, AQ and AR, AC May/2026 (and SC for AQ and AR): every APAC row is exactly one `pa` row
+Checked for AM, AQ, AR and AD, AC May/2026 (and SC for AQ and AR, SE for AD): every APAC row is exactly one `pa` row
 with `PA_DOCORIG = 'P'`, and `AP_VL_AP` equals the sum of `PA_VALAPR` over the APAC's `P`
 and `S` rows. The APAC
 files carry no quantity column, so for quantities use `pa`.
@@ -84,10 +84,11 @@ files carry no quantity column, so for quantities use `pa`.
   rows over a quarter counts most APACs up to three times.
 - **Patients:** `COUNT(DISTINCT AP_CNSPCN)`. The CNS is encoded by DATASUS (non-digit
   characters), consistently within the data, so it identifies a patient across months and
-  APAC types but cannot be linked to other systems. In AQ and AR it is **empty or a
+  APAC types but cannot be linked to other systems. In AQ, AR and AD it is **empty or a
   placeholder** (`{{{{{{{{{{{{{{{`) on a growing share of rows since 2024 (see
   [aq](aq.md#following-a-patient); in AR 95% of all rows by Aug/2026, see
-  [ar](ar.md#following-a-patient)); check the type's page before counting patients.
+  [ar](ar.md#following-a-patient); in AD 67% in Aug/2026, see
+  [ad](ad.md#patients)); check the type's page before counting patients.
 
 ## Shared columns
 
@@ -121,7 +122,7 @@ files and can differ slightly between types.
 | `AP_AUTORIZ` | 13 | APAC number, `UFAATsssssssd`. | Key of the APAC; repeats in continuation months. Joins `PA_AUTORIZ`. |
 | `AP_PRIPAL` | 10 | Main procedure of the APAC. | SIGTAP; join `procedimentos.codigo`. |
 | `AP_VL_AP` | 12 | Total approved value of the APAC. | `DOUBLE` in the typed view; nominal R$. |
-| `AP_TPATEN` | 2 | APAC type of care (*tipo de atendimento*). | One value per file type (`06` in AM). |
+| `AP_TPATEN` | 2 | APAC type of care (*tipo de atendimento*). | One value per file type (`06` in AM, `03` in AQ, `04` in AR, `00` in AD). |
 | `AP_TPAPAC` | 1 | APAC is `1` initial, `2` continuation, `3` single. | |
 | `AP_DTINIC` | 8 | Start of validity (`AAAAMMDD`). | |
 | `AP_DTFIM` | 8 | End of validity (`AAAAMMDD`). | Up to 3 months after the start. |
@@ -158,7 +159,7 @@ files and can differ slightly between types.
 | `AP_UFNACIO` | 3 | Nationality code. | `010` = Brazilian. |
 | `AP_CEPPCN` | 8 | Postcode (CEP) of the patient. | |
 | `AP_UFDIF` | 2 | Patient's state differs from the facility's: `0` same, `1` different. | |
-| `AP_MNDIF` | 2 | Patient's municipality differs from the facility's: `0` same, `1` different. | **Always `1` in AM, AQ and AR** even when they are equal; compare `AP_MUNPCN` with `AP_UFMUN` instead. |
+| `AP_MNDIF` | 2 | Patient's municipality differs from the facility's: `0` same, `1` different. | **Always `1` in AM, AQ, AR and AD** even when they are equal; compare `AP_MUNPCN` with `AP_UFMUN` instead. |
 
 ### Diagnosis
 
@@ -171,7 +172,7 @@ files and can differ slightly between types.
 ## Layouts
 
 The Informe Técnico (Jul/2019) says the APAC layouts have not changed since Jan/2008. The
-only change seen in the shared columns is `AP_NATJUR`, added in Jul/2016 (AM, AQ and AR; the
+only change seen in the shared columns is `AP_NATJUR`, added in Jul/2016 (AM, AQ, AR and AD; the
 views show `NULL` before). Types can also gain columns of their own (AQ: `AQ_MED01`–`AQ_MED10`
 from Jan/2021). Header checks in Nov/2026 found the 46 `AP_` columns above in AM, AQ, AR, AD, ATD,
 ACF and AMP (AN, which ended in 2014, has all but `AP_NATJUR`). ABO renames a few of them

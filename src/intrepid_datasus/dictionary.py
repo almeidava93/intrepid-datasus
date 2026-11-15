@@ -210,7 +210,7 @@ APAC_COMMON = {
     "AP_CNPJMNT": "Maintaining body's CNPJ, or zeros if none.",
     "AP_CNSPCN": "Patient's national health card (CNS), ENCODED by DATASUS (not the real number). "
                  "Same value = same patient within the data; cannot be linked to other systems. "
-                 "Can be empty or a placeholder in some types (AQ, AR): see the table page.",
+                 "Can be empty or a placeholder in some types (AQ, AR, AD): see the table page.",
     "AP_COIDADE": "Unit of AP_NUIDADE: 2 = days, 3 = months, 4 = years, 5 = 100 years or more "
                   "(age = 100 + AP_NUIDADE), 9 = not informed.",
     "AP_NUIDADE": "Patient age (2 characters), in the unit given by AP_COIDADE.",
@@ -221,7 +221,7 @@ APAC_COMMON = {
     "AP_CEPPCN": "Postcode (CEP) of the patient's address.",
     "AP_UFDIF": "Patient lives in another state than the facility (0 = same, 1 = different).",
     "AP_MNDIF": "Patient lives in another municipality than the facility (0 = same, 1 = different). "
-                "Unreliable (always 1 in AM, AQ and AR): compare AP_MUNPCN with AP_UFMUN instead.",
+                "Unreliable (always 1 in AM, AQ, AR and AD): compare AP_MUNPCN with AP_UFMUN instead.",
     "AP_DTINIC": "Start of the APAC's validity period (YYYYMMDD).",
     "AP_DTFIM": "End of the APAC's validity period (YYYYMMDD); up to 3 months after AP_DTINIC.",
     "AP_TPATEN": "APAC type of care (tipo de atendimento / laudo); fixed per file type.",
@@ -419,4 +419,40 @@ AR = apac("AR", {
     "AR_FIMAR3": "End date of the irradiation of the 3rd area (YYYYMMDD), or empty/zeros.",
     "AR_NUMC2": "Number of fields or insertions for the 2nd area, or empty/'000'. Always empty since 2020.",
     "AR_NUMC3": "Number of fields or insertions for the 3rd area, or empty/'000'. Always empty since 2020.",
+})
+
+
+# ------------------------------------------------------------------- AD
+# APAC de Laudos Diversos, files AD<UF><YY><MM>.dbc, Jan/2008 onward: the APACs of every
+# procedure that has no laudo of its own (eye surgery and injections, hearing diagnosis and
+# aids, cardiac catheterisation, transplant follow-up, PET-CT, wheelchairs, ...). Only the
+# shared AP_ columns, no AD_ column. One layout: AP_NATJUR added Jul/2016 (NULL before).
+# Source: "Informe Técnico SIASUS" (Jul/2019), section 3.4.1 "Layout do arquivo de laudos
+# diversos: ADUFAAMM.DBF" (URL above). Procedure mix by year: docs/tables/ad.md.
+AD_QUANTITY_COLS = APAC_QUANTITY_COLS
+AD_VALUE_COLS = APAC_VALUE_COLS
+
+AD = apac("AD", {
+    "AP_PRIPAL": "Main procedure of the APAC, SIGTAP code (10 digits), from many groups: the procedure's "
+                 "grupo/subgrupo in procedimentos says what kind of care the row is (0405 eye surgery, "
+                 "0211 diagnosis in specialties, 0506 transplant follow-up, 0301 consultations/follow-up, "
+                 "0701 orthoses/prostheses, ...). Until Dec/2012 mostly CAPS mental health follow-up "
+                 "(030108, moved to RAAS). NULL on 23,613 rows, mostly Jan-Mar/2013 and Sep-Nov/2023: "
+                 "APACs billed late with a code just retired (pa has the code). Joins procedimentos; "
+                 "fetch past SIGTAP versions for old codes.",
+    "AP_VL_AP": "Approved value of the APAC in this month, R$ (number, nominal) = SUM(PA_VALAPR) of its pa "
+                "rows (main + secondary procedures). 0 on about 7% of rows since 2023 (31% of transplant "
+                "follow-up rows).",
+    "AP_TPATEN": "APAC type of care; always 00 in AD (no specific laudo).",
+    "AP_TPAPAC": "1 = initial, 2 = continuation, 3 = single. Depends on the procedure: surgery, exams and "
+                 "devices are single APACs (3); follow-up (transplant, retina treatment, CAPS until 2012, "
+                 "...) runs 1 then 2. 4 (not in the layout) on 760 rows, all without a procedure.",
+    "AP_MNDIF": "Patient lives in another municipality than the facility. Always 1 in AD (362 exceptions "
+                "in 61 M rows; wrong): compare AP_MUNPCN with AP_UFMUN instead.",
+    "AP_CNSPCN": "Patient's CNS, ENCODED by DATASUS. Empty (NULL) or the placeholder '{{{{{{{{{{{{{{{' on a "
+                 "share of rows that grows from Apr/2024 (13% in Jan/2025, 35% in Jan/2026, 67% in Aug/2026): "
+                 "exclude both before counting or following patients.",
+    "AP_CIDPRI": "Main diagnosis, ICD-10 (no dot): eye (H25/H26 cataract, H35/H36 retina, H40 glaucoma), "
+                 "hearing loss (H90/H91), transplanted organ (Z94x), angina (I20), mental disorders (F, "
+                 "until 2012), ... Joins cid10.",
 })

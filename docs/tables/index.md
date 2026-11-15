@@ -17,6 +17,8 @@ views over the local Parquet store, so a table only exists once its data has bee
 | `aq_raw` | same | same, every column as text | [aq](aq.md#aq-vs-aq_raw) |
 | `ar` | `datasus fetch -T ar` (2008 onward) | one radiotherapy APAC, per month; also in `pa` | [ar](ar.md), [APAC](apac.md) |
 | `ar_raw` | same | same, every column as text | [ar](ar.md#ar-vs-ar_raw) |
+| `ad` | `datasus fetch -T ad` (2008 onward) | one APAC of the other (diverse) laudos, per month; also in `pa` | [ad](ad.md), [APAC](apac.md) |
+| `ad_raw` | same | same, every column as text | [ad](ad.md#ad-vs-ad_raw) |
 | `ufs` | nothing (built in) | one state | [Lookups](lookups.md#ufs) |
 | `procedimentos` | `datasus sigtap fetch` | one SIGTAP procedure code | [Lookups](lookups.md#procedimentos) |
 | `cid10` | `datasus sigtap fetch` | one ICD-10 code | [Lookups](lookups.md#cid10) |
@@ -39,8 +41,9 @@ named after its code in lowercase: a typed view (`pa`) and a text-only `_raw` vi
 | AM | `am` | APAC Medicamentos | `am`, `am_raw` | [am](am.md) |
 | AQ | `aq` | APAC Quimioterapia | `aq`, `aq_raw` | [aq](aq.md) |
 | AR | `ar` | APAC Radioterapia | `ar`, `ar_raw` | [ar](ar.md) |
+| AD | `ad` | APAC Laudos Diversos | `ad`, `ad_raw` | [ad](ad.md) |
 
-AM, AQ and AR are the first of the APAC file types (authorisations for high-cost treatments: AM, AQ,
+AM, AQ, AR and AD are the first of the APAC file types (authorisations for high-cost treatments: AM, AQ,
 AR, AD, ATD, ...). What an APAC is, how its months continue and the `AP_` columns they all
 share are described once, on the [APAC file types](apac.md) page.
 
@@ -91,13 +94,20 @@ ar ── AP_PRIPAL  ──► procedimentos (codigo)    radiotherapy procedure 
  │ ── LEFT(AP_MUNPCN, 2) ──► ufs (ibge)
  │ ── AP_CNSPCN  ──► aq (AP_CNSPCN)    same patient's chemotherapy
  └─── AP_AUTORIZ, AP_CMP ──► pa (PA_AUTORIZ, PA_CMP, same competencia and uf)
+
+ad ── AP_PRIPAL  ──► procedimentos (codigo)    procedure (grupo/subgrupo say what kind)
+ │ ── AP_CIDPRI  ──► cid10 (codigo)
+ │ ── uf         ──► ufs (uf)
+ │ ── LEFT(AP_MUNPCN, 2) ──► ufs (ibge)
+ └─── AP_AUTORIZ, AP_CMP ──► pa (PA_AUTORIZ, PA_CMP, same competencia and uf)
 ```
 
 `bi` rows are the `pa` rows with `PA_DOCORIG = 'I'`: query one or the other, never both
 summed (see [bi](bi.md#how-bi-relates-to-pa-double-counting)). Likewise `am` rows are `pa`
 rows with `PA_DOCORIG = 'P'` (see [am](am.md#how-am-relates-to-pa-double-counting)), and so are
 `aq` rows (see [aq](aq.md#how-aq-relates-to-pa-double-counting)) and `ar` rows (see
-[ar](ar.md#how-ar-relates-to-pa-double-counting)).
+[ar](ar.md#how-ar-relates-to-pa-double-counting)) and `ad` rows (see
+[ad](ad.md#how-ad-relates-to-pa-double-counting)).
 
 `pa_legacy` joins `ufs` the same way, but **not** the SIGTAP lookups: its procedure codes
 (`PA_CODPRO`) belong to the old SIA table that SIGTAP replaced in Jan/2008.

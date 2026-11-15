@@ -42,6 +42,7 @@ nav:
       - am (APAC Medicamentos): tables/am.md
       - aq (APAC Quimioterapia): tables/aq.md
       - ar (APAC Radioterapia): tables/ar.md
+      - ad (APAC Laudos Diversos): tables/ad.md
       - Lookup tables: tables/lookups.md
       - SIGTAP tables: tables/sigtap.md
   - API reference:

@@ -61,7 +61,10 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
    show `NULL`. The same trick gives row counts, e.g. to compare a whole file with its parts.
    The header does not show changes in *meaning*: also look at the main procedure codes and
    rows per APAC by year once the data is fetched (AR: new SIGTAP codes from May/2019 turned
-   one row per APAC-month into one row per treatment, with the same columns).
+   one row per APAC-month into one row per treatment, with the same columns; AD: CAPS mental
+   health care, 60% of its rows, moved to RAAS in Jan/2013). Group the procedures by SIGTAP
+   subgroup (`LEFT(AP_PRIPAL, 4)`, or `procedimentos.subgrupo`) per year. Also count
+   `AP_PRIPAL IS NULL`: AD blanks it on APACs billed late with a code that was just retired.
 
     ```python
     import struct
@@ -163,12 +166,16 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       row, and `AP_VL_AP` the sum of `PA_VALAPR` over its `P` and `S` rows (AM: exact, and
       AM = `P` rows with `PA_TPFIN = '02'`; AQ: exact, and AQ = `P` rows with `PA_PROC_ID`
       from `0304020000` to `0304089999`; AR: exact, `P` rows with `PA_PROC_ID LIKE '030401%'`,
-      checked on a month before and after its 2019 procedure change).
+      checked on a month before and after its 2019 procedure change; AD: exact, but no `pa`
+      column picks its rows out, and some APACs, such as glaucoma follow-up, are not in AD
+      either).
       Check whether some other column of `pa` (`PA_TPFIN`, the procedure group) picks out
-      exactly your type's rows;
+      exactly your type's rows, and list by procedure subgroup the `P` rows that are in no
+      APAC table yet;
     - for APAC types, check `AP_CNSPCN` by month and state (`NULL` and `{{{{{{{{{{{{{{{`)
       before writing anything about patients: from Nov/2025 it is missing on most AR rows
-      (95% in Aug/2026), on 2–22% of AQ rows (SC, 2026), on none in AM;
+      (95% in Aug/2026), on 2–22% of AQ rows (SC, 2026), on 67% of AD rows in Aug/2026
+      (rising since Apr/2024), on none in AM;
     - check `uv run mkdocs build --strict` (needs `uv sync --group docs`).
 6. **Check for real** with one small state-month, and paste the output in the PR:
 
@@ -186,7 +193,10 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
     file (82 MB, 1.37 M rows) took 28 s and about 1.2 GB of RAM; AQ's (10.5 MB, 102 k
     rows), 7 s and 0.4 GB. For a type with many tiny files the Parquet ratio is high,
     because each file has about 20 KB of overhead (AR: 0.81 over its 5,491 files), and
-    small files can take up to 30 s each on the FTP (AR, every month: about 35 min). The temporary DBF is
+    small files can take up to 30 s each on the FTP (AR, every month: about 35 min). To fetch
+    a whole history faster, run two or three fetches of different year ranges into separate
+    stores (`-d`) at once, then move the `data/<key>/competencia=*` folders into one store and
+    merge the `manifest.json` dicts (AD: 6,046 files in 26 min this way). The temporary DBF is
     (record length × rows): the record length is 1 + the sum of the field widths from the
     header probe.
 
