@@ -8,7 +8,7 @@ month in one file type per kind of request form (*laudo*):
 | Code | Laudo | Table | Status |
 |---|---|---|---|
 | AM | Medicines (Componente Especializado da Assistência Farmacêutica) | [`am`](am.md) | supported |
-| AQ | Chemotherapy | | planned |
+| AQ | Chemotherapy (oncology) | [`aq`](aq.md) | supported |
 | AR | Radiotherapy | | planned |
 | AD | Diverse requests (*laudos diversos*) | | planned |
 | ATD | Dialysis (from Aug/2014) | | planned |
@@ -56,12 +56,18 @@ month and state:
 ```sql
 SELECT a.AP_AUTORIZ, a.AP_VL_AP, p.PA_DOCORIG, p.PA_PROC_ID, p.PA_QTDAPR, p.PA_VALAPR
 FROM am a
-JOIN pa p ON p.PA_AUTORIZ = a.AP_AUTORIZ AND p.competencia = a.competencia AND p.uf = a.uf
+JOIN pa p ON p.PA_AUTORIZ = a.AP_AUTORIZ AND p.PA_CMP = a.AP_CMP
+         AND p.competencia = a.competencia AND p.uf = a.uf
 WHERE a.competencia = 202605 AND a.uf = 'AC' AND p.PA_DOCORIG IN ('P', 'S');
 ```
 
-Checked for AM, AC May/2026: every `am` row is exactly one `pa` row with `PA_DOCORIG = 'P'`,
-and `AP_VL_AP` equals the sum of `PA_VALAPR` over the APAC's `P` and `S` rows. The APAC
+Join on `AP_CMP = PA_CMP` too: a month's file can hold the same APAC twice, once for the
+current month and once billed late for an earlier one (AQ, SC May/2026: 6,195 of 22,109 rows
+have `AP_CMP` before `AP_MVM`). `(AP_AUTORIZ, AP_CMP)` is unique within a file.
+
+Checked for AM and AQ, AC May/2026 (and SC for AQ): every APAC row is exactly one `pa` row
+with `PA_DOCORIG = 'P'`, and `AP_VL_AP` equals the sum of `PA_VALAPR` over the APAC's `P`
+and `S` rows. The APAC
 files carry no quantity column, so for quantities use `pa`.
 
 !!! danger "Don't add APAC tables to `pa`"
@@ -76,7 +82,9 @@ files carry no quantity column, so for quantities use `pa`.
   rows over a quarter counts most APACs up to three times.
 - **Patients:** `COUNT(DISTINCT AP_CNSPCN)`. The CNS is encoded by DATASUS (non-digit
   characters), consistently within the data, so it identifies a patient across months and
-  APAC types but cannot be linked to other systems.
+  APAC types but cannot be linked to other systems. In AQ it is **empty or a placeholder**
+  (`{{{{{{{{{{{{{{{`) on a growing share of rows since 2024 (see [aq](aq.md#following-a-patient));
+  check the type's page before counting patients.
 
 ## Shared columns
 
@@ -119,13 +127,13 @@ files and can differ slightly between types.
 | `AP_UNISOL` | 7 | CNES code of the requesting facility. | Zeros when not informed. |
 | `AP_DTSOLIC` | 8 | Request date (`AAAAMMDD`). | |
 | `AP_DTAUT` | 8 | Authorisation date (`AAAAMMDD`). | |
-| `AP_CODEMI` | 10 | Issuing body (*órgão emissor*). | `E` + state code + `0000001` = state health secretariat (e.g. `E350000001`); other values (`S` + state code + 7 digits) are other bodies. |
+| `AP_CODEMI` | 10 | Issuing body (*órgão emissor*). | `E` + state code + 7 digits (`E350000001`) = state health secretariat; `M` + IBGE municipality + `0001` (`M355030001`) = municipal health secretariat; `S…` and `U…` are other bodies. |
 
 ### Exit and continuation
 
 | Column | Size | Official description | Notes |
 |---|---|---|---|
-| `AP_MOTSAI` | 2 | Reason for exit or continuation (*motivo de saída / permanência*). | `11`–`18` discharge (11 cured, 12 improved, 16 evasion, 18 other), `21` continues because of the disease, `28` continues for other reasons, `31` transfer, `41`–`43` death, `51` closed administratively. |
+| `AP_MOTSAI` | 2 | Reason for exit or continuation (*motivo de saída / permanência*). | `11`–`18` discharge (11 cured, 12 improved, 14 on request, 15 with return for follow-up, 16 evasion, 18 other), `21` continues because of the disease, `22` continues because of a complication, `26` continues with a change of procedure, `28` continues for other reasons, `31` transfer, `41`–`43` death, `51` closed administratively. |
 | `AP_OBITO` | 1 | Death indicator. | `1` = yes. |
 | `AP_ENCERR` | 1 | Closure indicator. | `1` = yes. |
 | `AP_PERMAN` | 1 | Continuation indicator. | `1` = patient continues. |
@@ -147,7 +155,7 @@ files and can differ slightly between types.
 | `AP_UFNACIO` | 3 | Nationality code. | `010` = Brazilian. |
 | `AP_CEPPCN` | 8 | Postcode (CEP) of the patient. | |
 | `AP_UFDIF` | 2 | Patient's state differs from the facility's: `0` same, `1` different. | |
-| `AP_MNDIF` | 2 | Patient's municipality differs from the facility's: `0` same, `1` different. | **Always `1` in AM** even when they are equal; compare `AP_MUNPCN` with `AP_UFMUN` instead. |
+| `AP_MNDIF` | 2 | Patient's municipality differs from the facility's: `0` same, `1` different. | **Always `1` in AM and AQ** even when they are equal; compare `AP_MUNPCN` with `AP_UFMUN` instead. |
 
 ### Diagnosis
 
@@ -160,7 +168,8 @@ files and can differ slightly between types.
 ## Layouts
 
 The Informe Técnico (Jul/2019) says the APAC layouts have not changed since Jan/2008. The
-only change seen in the files is `AP_NATJUR`, added in Jul/2016 (AM; the views show `NULL`
-before). Header checks in Nov/2026 found the 46 `AP_` columns above in AM, AQ, AR, AD, ATD,
+only change seen in the shared columns is `AP_NATJUR`, added in Jul/2016 (AM and AQ; the
+views show `NULL` before). Types can also gain columns of their own (AQ: `AQ_MED01`–`AQ_MED10`
+from Jan/2021). Header checks in Nov/2026 found the 46 `AP_` columns above in AM, AQ, AR, AD, ATD,
 ACF and AMP (AN, which ended in 2014, has all but `AP_NATJUR`). ABO renames a few of them
 (`AP_TPPRE`, `AP_TPATEND`, `AP_DTOOCOR`, `AP_APACAN`) and adds comorbidity fields.

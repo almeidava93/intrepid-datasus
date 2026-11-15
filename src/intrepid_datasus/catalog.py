@@ -142,7 +142,12 @@ AM = FileType("AM", "APAC Medicamentos", (
         quantity_cols=dictionary.AM_QUANTITY_COLS, value_cols=dictionary.AM_VALUE_COLS),
 ), parquet_ratio=0.5)  # AC May/2026: 0.57; SP Jul/2025 (largest file): 0.47
 
-REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA, BI, AM)}
+AQ = FileType("AQ", "APAC Quimioterapia", (
+    Era("aq", FTP_CURRENT_DIR, 200801, 999912, dictionary.AQ,
+        quantity_cols=dictionary.AQ_QUANTITY_COLS, value_cols=dictionary.AQ_VALUE_COLS),
+), parquet_ratio=0.45)  # SP Jul/2025 (largest file): 0.44; SC 2024-2026: 0.48
+
+REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA, BI, AM, AQ)}
 DEFAULT_TABLES = ("PA",)  # what the CLI uses when --table is not given
 
 
