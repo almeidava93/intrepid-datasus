@@ -171,7 +171,8 @@ BI = {
     "MNDIF": "Patient lives in another municipality than the facility (0 = same, 1 = different).",
     "ETNIA": "Indigenous ethnicity code (Portaria SAS 508/2010, annex I); only when RACACOR = 05, "
              "from Oct/2010.",
-    "NAT_JUR": "Facility legal nature (natureza jurídica code, IBGE CONCLA table). From Jul/2016; NULL before.",
+    "NAT_JUR": "Facility legal nature (natureza jurídica code, IBGE CONCLA table). From Jul/2016; NULL "
+               "before, except in the Dec/2011 files (the column was there that month only).",
 }
 
 # ------------------------------------------------------------------- APAC (shared)
@@ -221,7 +222,7 @@ APAC_COMMON = {
     "AP_CEPPCN": "Postcode (CEP) of the patient's address.",
     "AP_UFDIF": "Patient lives in another state than the facility (0 = same, 1 = different).",
     "AP_MNDIF": "Patient lives in another municipality than the facility (0 = same, 1 = different). "
-                "Unreliable (always 1 in AM, AQ, AR, AD and ATD): compare AP_MUNPCN with AP_UFMUN instead.",
+                "Unreliable (always 1 in AM, AQ, AR, AD, ATD and AN): compare AP_MUNPCN with AP_UFMUN instead.",
     "AP_DTINIC": "Start of the APAC's validity period (YYYYMMDD).",
     "AP_DTFIM": "End of the APAC's validity period (YYYYMMDD); up to 3 months after AP_DTINIC.",
     "AP_TPATEN": "APAC type of care (tipo de atendimento / laudo); fixed per file type.",
@@ -252,7 +253,8 @@ APAC_COMMON = {
     "AP_CIDPRI": "Main diagnosis, ICD-10 (no dot, e.g. 'M058'). Joins cid10.",
     "AP_CIDSEC": "Secondary diagnosis, ICD-10 (no dot), or '0000'. Joins cid10.",
     "AP_ETNIA": "Indigenous ethnicity code (Portaria SAS 508/2010, annex I); only when AP_RACACOR = 05.",
-    "AP_NATJUR": "Facility legal nature (natureza jurídica code, IBGE CONCLA table). From Jul/2016; NULL before.",
+    "AP_NATJUR": "Facility legal nature (natureza jurídica code, IBGE CONCLA table). From Jul/2016; NULL "
+                 "before, except in the Dec/2011 files (every APAC type had the column that month only).",
 }
 
 
@@ -532,4 +534,78 @@ ATD = apac("ATD", {
                   "S = yes, N = no, I = unknown.",
     "ATD_SEPERI": "If on peritoneal dialysis, peritonitis was diagnosed this month: S = yes, N = no, "
                   "I = unknown. Filled on haemodialysis rows too (ignore it there).",
+})
+
+
+# ------------------------------------------------------------------- AN
+# APAC de Nefrologia (chronic dialysis), files AN<UF><YY><MM>.dbc, Jan/2008 to Oct/2014; replaced
+# by ATD from Aug/2014 (AN's last real month is Jul/2014; Aug-Oct/2014 hold 280 late bills). One
+# layout: the 45 shared AP_ columns and 15 AN_ columns (60); the Dec/2011 files of every state
+# also carry AP_NATJUR, appended last (61), as do the other APAC types and BI that month.
+# Sources: "Informe Técnico SIASUS" (Jul/2019), section 3.4.3 "Layout do arquivo de APAC de
+# nefrologia: ANUFMM.DBF" (URL above), for the columns; DATASUS "Layout da interface texto do
+# APAC e do SIA - layout interno" (Apr/2014), "parte variável 09 - Nefrologia", for the codes
+# and for which fields are filled on the first dialysis (*), on later months (**) or both (***).
+# Value checks and the AN -> ATD transition: docs/tables/an.md and docs/tables/atd.md.
+AN_QUANTITY_COLS = APAC_QUANTITY_COLS
+AN_VALUE_COLS = APAC_VALUE_COLS
+
+_AN_FIRST = (" Layout: first dialysis only (*); in the files, filled on every AP_TPAPAC = 1 row and on 77% of "
+             "continuation rows (NULL on the others).")
+_AN_FOLLOW = (" Layout: later months only (**); in the files, filled on every AP_TPAPAC = 2 row and on 44% of "
+              "AP_TPAPAC = 1 rows (NULL on the others).")
+_AN_TEXT = (" Text, as typed by the facility: zero ('0', '00', ...) = not measured; a few typos ('9,', 'NN', '##'). "
+            "See docs/tables/an.md.")
+
+AN = apac("AN", {
+    "_ARQUIVO_ORIGEM": "Original DATASUS file this row came from (e.g. ANSP1405.dbc).",
+    "AP_PRIPAL": "Dialysis procedure, SIGTAP 0305010xxx: 0305010107 haemodialysis (max. 3 sessions/week, 91.5% of "
+                 "rows), 0305010166 home peritoneal dialysis follow-up (CAPD/APD, 7.2%), 0305010115 haemodialysis "
+                 "with positive HIV/HBV/HCV serology, 0305010182 PD training, 0305010026 intermittent PD, "
+                 "0305010069 / 0305010085 'hemodiálise I' (plain / HIV; retired codes, until Sep/2012), 0305010204 "
+                 "paediatric haemodialysis (2014 only). Never NULL. Joins procedimentos.",
+    "AP_VL_AP": "Approved value of the APAC in this month, R$ (number, nominal) = SUM(PA_VALAPR) of its pa rows: "
+                "the sessions (the P row) plus secondary procedures (lab tests, materials). Median ~R$ 2,390 a "
+                "month for haemodialysis in May/2014.",
+    "AP_TPATEN": "APAC type of care; always 02 in AN (ATD uses 10).",
+    "AP_TPAPAC": "1 = initial, 2 = continuation, 3 = single (mostly PD training). Dialysis APACs run three months: "
+                 "about 36% of rows are 1 and 64% are 2 every year.",
+    "AP_MNDIF": "Patient lives in another municipality than the facility. Always 1 in AN (wrong, as in the other "
+                "APAC types): compare AP_MUNPCN with AP_UFMUN instead.",
+    "AP_CNSPCN": "Patient's CNS, ENCODED by DATASUS (same encoding as ATD and the other APAC types). Filled on "
+                 "every row except 58 (2008-2012). Same patient in ATD from Aug/2014.",
+    "AP_CIDPRI": "Main diagnosis, ICD-10 (no dot). Always filled in AN (unlike ATD): N180 (end-stage kidney "
+                 "disease) on 98% of rows, then N189, I120, N039, N083, I10. Joins cid10.",
+    "AP_CIDSEC": "Secondary diagnosis, ICD-10 (no dot), or '0000' (13% of rows): mostly the underlying cause, "
+                 "N189 (34%), N180, I10 hypertension, N188, I120 hypertensive kidney disease, E142 diabetes. "
+                 "Joins cid10.",
+    "AP_CIDCAS": "Associated cause, ICD-10, or '0000' (76% of rows); otherwise mostly N180. Joins cid10.",
+    "AP_NATJUR": "Facility legal nature. Only in the Dec/2011 files, and empty (NULL) on every row there; NULL "
+                 "in every other month (AN ended before Jul/2016, when the other APAC types got the column).",
+    "AN_DTPDR": "Date of the patient's first dialysis ever (YYYYMMDD)." + _AN_FIRST,
+    "AN_ALTURA": "Patient height, cm (3 digits, e.g. '165'; '000'/'0' on ~21% of rows = not informed)." + _AN_FIRST,
+    "AN_PESO": "Patient weight, kg (3 digits, e.g. '065' or '65'; zero on ~20% = not informed)." + _AN_FIRST,
+    "AN_DIURES": "Residual diuresis (urine output), mL/24 h (4 digits; zero on about half the rows: anuric or not "
+                 "informed)." + _AN_FIRST,
+    "AN_GLICOS": "Blood glucose, mg/dL (4 digits; zero on ~30% of rows = not informed)." + _AN_FIRST,
+    "AN_ACEVAS": "Has a vascular access (S = yes, N = no). Not the access type (ATD_ACEVAS has the type); a few "
+                 "rows carry digits, e.g. '2' in 2014." + _AN_FIRST,
+    "AN_ULSOAB": "Abdominal ultrasound done (S = yes, N = no)." + _AN_FIRST,
+    "AN_TRU": "Urea reduction ratio (URR), % (4 characters; integer on almost every row, e.g. '69' or '0070'; "
+              "decimal comma on ~1% in 2014; zero on ~30% = not measured)." + _AN_FOLLOW + _AN_TEXT,
+    "AN_INTFIS": "Number of interventions on the arteriovenous fistula (2 digits; mostly 0 or 1). Filled like "
+                 "AN_TRU, but NULL on 24% of continuation rows too." + _AN_FOLLOW,
+    "AN_CNCDO": "Registered on the transplant waiting list (CNCDO): S = yes, N = no. S fell from 39% of rows "
+                "(2008) to 28% (2014)." + _AN_FOLLOW,
+    "AN_ALBUMI": "Serum albumin, g% (= g/dL), 2 characters, every month (***). About 53% of rows are one "
+                 "non-zero digit (g/dL, rounded: '4', '04'), ~20% are tenths without the point ('39' = 3.9 g/dL: "
+                 "read 10-60 as x/10) and 25% zero."
+                 + _AN_TEXT,
+    "AN_HCV": "Anti-HCV antibodies (hepatitis C): P = positive (5.6% of rows in 2008, 3.0% in 2014), "
+              "N = negative. Always filled (***).",
+    "AN_HBSAG": "HBsAg (hepatitis B surface antigen): P = positive (~1%), N = negative. Always filled (***).",
+    "AN_HIV": "Anti-HIV antibodies: P = positive (~0.7%), N = negative. Always filled (***).",
+    "AN_HB": "Haemoglobin, g% (= g/dL), 2 characters, whole number ('11', '09'), every month (***). Plausible "
+             "(3-20) on 74% of rows; zero on 18%; 21-99 on 7% (e.g. '93', '99': 9.3 without the point, or "
+             "filler)." + _AN_TEXT,
 })

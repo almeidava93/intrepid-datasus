@@ -162,7 +162,12 @@ ATD = FileType("ATD", "APAC Tratamento Dialítico", (
         quantity_cols=dictionary.ATD_QUANTITY_COLS, value_cols=dictionary.ATD_VALUE_COLS),
 ), parquet_ratio=0.75)  # all 3,911 files: 0.79 GB Parquet / 1.06 GB .dbc
 
-REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA, BI, AM, AQ, AR, AD, ATD)}
+AN = FileType("AN", "APAC Nefrologia", (  # discontinued: replaced by ATD (data ends Jul/2014)
+    Era("an", FTP_CURRENT_DIR, 200801, 201410, dictionary.AN,
+        quantity_cols=dictionary.AN_QUANTITY_COLS, value_cols=dictionary.AN_VALUE_COLS),
+), parquet_ratio=0.66)  # all 2,145 files: 0.30 GB Parquet / 0.46 GB .dbc
+
+REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA, BI, AM, AQ, AR, AD, ATD, AN)}
 DEFAULT_TABLES = ("PA",)  # what the CLI uses when --table is not given
 
 

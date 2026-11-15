@@ -12,7 +12,7 @@ month in one file type per kind of request form (*laudo*):
 | AR | Radiotherapy (oncology) | [`ar`](ar.md) | supported |
 | AD | Diverse requests (*laudos diversos*): eye, cardiology, hearing, ostomy, orthopaedic aids, transplant follow-up, ... | [`ad`](ad.md) | supported |
 | ATD | Dialysis (from Aug/2014) | [`atd`](atd.md) | supported |
-| AN | Nephrology (until Jul/2014, late bills to Oct/2014; replaced by ATD, see [the transition](atd.md#from-an-to-atd-2014)) | | planned |
+| AN | Nephrology: dialysis, Jan/2008 to Jul/2014 (late bills to Oct/2014; replaced by ATD, see [the transition](atd.md#from-an-to-atd-2014)) | [`an`](an.md) | supported |
 | AB | Bariatric surgery follow-up | | planned |
 | ABO | Post-bariatric surgery follow-up | | planned |
 | ACF | Arteriovenous fistula creation | | planned |
@@ -160,7 +160,7 @@ files and can differ slightly between types.
 | `AP_UFNACIO` | 3 | Nationality code. | `010` = Brazilian. |
 | `AP_CEPPCN` | 8 | Postcode (CEP) of the patient. | |
 | `AP_UFDIF` | 2 | Patient's state differs from the facility's: `0` same, `1` different. | |
-| `AP_MNDIF` | 2 | Patient's municipality differs from the facility's: `0` same, `1` different. | **Always `1` in AM, AQ, AR, AD and ATD** even when they are equal; compare `AP_MUNPCN` with `AP_UFMUN` instead. |
+| `AP_MNDIF` | 2 | Patient's municipality differs from the facility's: `0` same, `1` different. | **Always `1` in AM, AQ, AR, AD, ATD and AN** even when they are equal; compare `AP_MUNPCN` with `AP_UFMUN` instead. |
 
 ### Diagnosis
 
@@ -174,7 +174,8 @@ files and can differ slightly between types.
 
 The Informe Técnico (Jul/2019) says the APAC layouts have not changed since Jan/2008. The
 only change seen in the shared columns is `AP_NATJUR`, added in Jul/2016 (AM, AQ, AR and AD; the
-views show `NULL` before). Types can also gain columns of their own (AQ: `AQ_MED01`–`AQ_MED10`
+views show `NULL` before). It is also in the **Dec/2011** files, and only in that month before
+Jul/2016, in every APAC type then published (AM, AQ, AR, AD, AN; and BI's `NAT_JUR`). Types can also gain columns of their own (AQ: `AQ_MED01`–`AQ_MED10`
 from Jan/2021). Header checks in Nov/2026 found the 46 `AP_` columns above in AM, AQ, AR, AD, ATD,
-ACF and AMP (AN, which ended in 2014, has all but `AP_NATJUR`). ABO renames a few of them
+ACF and AMP (AN, which ended in 2014, has all but `AP_NATJUR`, except in Dec/2011). ABO renames a few of them
 (`AP_TPPRE`, `AP_TPATEND`, `AP_DTOOCOR`, `AP_APACAN`) and adds comorbidity fields.
