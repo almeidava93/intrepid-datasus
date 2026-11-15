@@ -9,7 +9,7 @@ month in one file type per kind of request form (*laudo*):
 |---|---|---|---|
 | AM | Medicines (Componente Especializado da Assistência Farmacêutica) | [`am`](am.md) | supported |
 | AQ | Chemotherapy (oncology) | [`aq`](aq.md) | supported |
-| AR | Radiotherapy | | planned |
+| AR | Radiotherapy (oncology) | [`ar`](ar.md) | supported |
 | AD | Diverse requests (*laudos diversos*) | | planned |
 | ATD | Dialysis (from Aug/2014) | | planned |
 | AN | Nephrology (until Oct/2014; replaced by ATD) | | planned |
@@ -35,7 +35,9 @@ state after the `P` (`AMPSP2605.dbc`). `datasus` matches the full pattern, so it
   with the same `AP_AUTORIZ` and `AP_DTINIC`: `AP_TPAPAC = 1` in the first month,
   `2` (continuation) in the following ones, or `3` for a single-month APAC. After that, a
   new APAC is issued if treatment goes on. (AC, Mar–May/2026, AM: 3,215 of the 4,766 May
-  APACs had already been billed in April under the same number.)
+  APACs had already been billed in April under the same number.) Some types bill a whole
+  treatment as one single APAC instead: radiotherapy (AR) since 2019 is always `3`, one row
+  per treatment (see [ar](ar.md#one-row-per-treatment-since-2019)).
 - **Exit.** `AP_MOTSAI` gives the reason the APAC ends or continues; the flags
   `AP_OBITO`, `AP_ALTA`, `AP_TRANSF`, `AP_ENCERR`, `AP_PERMAN` repeat it as 0/1, and
   `AP_DTOCOR` is the date of the event, which replaces the end of validity.
@@ -65,7 +67,7 @@ Join on `AP_CMP = PA_CMP` too: a month's file can hold the same APAC twice, once
 current month and once billed late for an earlier one (AQ, SC May/2026: 6,195 of 22,109 rows
 have `AP_CMP` before `AP_MVM`). `(AP_AUTORIZ, AP_CMP)` is unique within a file.
 
-Checked for AM and AQ, AC May/2026 (and SC for AQ): every APAC row is exactly one `pa` row
+Checked for AM, AQ and AR, AC May/2026 (and SC for AQ and AR): every APAC row is exactly one `pa` row
 with `PA_DOCORIG = 'P'`, and `AP_VL_AP` equals the sum of `PA_VALAPR` over the APAC's `P`
 and `S` rows. The APAC
 files carry no quantity column, so for quantities use `pa`.
@@ -82,9 +84,10 @@ files carry no quantity column, so for quantities use `pa`.
   rows over a quarter counts most APACs up to three times.
 - **Patients:** `COUNT(DISTINCT AP_CNSPCN)`. The CNS is encoded by DATASUS (non-digit
   characters), consistently within the data, so it identifies a patient across months and
-  APAC types but cannot be linked to other systems. In AQ it is **empty or a placeholder**
-  (`{{{{{{{{{{{{{{{`) on a growing share of rows since 2024 (see [aq](aq.md#following-a-patient));
-  check the type's page before counting patients.
+  APAC types but cannot be linked to other systems. In AQ and AR it is **empty or a
+  placeholder** (`{{{{{{{{{{{{{{{`) on a growing share of rows since 2024 (see
+  [aq](aq.md#following-a-patient); in AR 95% of all rows by Aug/2026, see
+  [ar](ar.md#following-a-patient)); check the type's page before counting patients.
 
 ## Shared columns
 
@@ -155,7 +158,7 @@ files and can differ slightly between types.
 | `AP_UFNACIO` | 3 | Nationality code. | `010` = Brazilian. |
 | `AP_CEPPCN` | 8 | Postcode (CEP) of the patient. | |
 | `AP_UFDIF` | 2 | Patient's state differs from the facility's: `0` same, `1` different. | |
-| `AP_MNDIF` | 2 | Patient's municipality differs from the facility's: `0` same, `1` different. | **Always `1` in AM and AQ** even when they are equal; compare `AP_MUNPCN` with `AP_UFMUN` instead. |
+| `AP_MNDIF` | 2 | Patient's municipality differs from the facility's: `0` same, `1` different. | **Always `1` in AM, AQ and AR** even when they are equal; compare `AP_MUNPCN` with `AP_UFMUN` instead. |
 
 ### Diagnosis
 
@@ -168,7 +171,7 @@ files and can differ slightly between types.
 ## Layouts
 
 The Informe Técnico (Jul/2019) says the APAC layouts have not changed since Jan/2008. The
-only change seen in the shared columns is `AP_NATJUR`, added in Jul/2016 (AM and AQ; the
+only change seen in the shared columns is `AP_NATJUR`, added in Jul/2016 (AM, AQ and AR; the
 views show `NULL` before). Types can also gain columns of their own (AQ: `AQ_MED01`–`AQ_MED10`
 from Jan/2021). Header checks in Nov/2026 found the 46 `AP_` columns above in AM, AQ, AR, AD, ATD,
 ACF and AMP (AN, which ended in 2014, has all but `AP_NATJUR`). ABO renames a few of them

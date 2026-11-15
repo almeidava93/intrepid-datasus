@@ -59,6 +59,9 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
    columns change, the file type needs one era per layout. A column only *added* over time
    (BI's `NAT_JUR`) needs no new era; the views read with `union_by_name` and older months
    show `NULL`. The same trick gives row counts, e.g. to compare a whole file with its parts.
+   The header does not show changes in *meaning*: also look at the main procedure codes and
+   rows per APAC by year once the data is fetched (AR: new SIGTAP codes from May/2019 turned
+   one row per APAC-month into one row per treatment, with the same columns).
 
     ```python
     import struct
@@ -138,7 +141,8 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       don't use its `registry` fixture in tests of the real entry. `tests/test_bi.py` is
       a complete example; `tests/test_am.py` is the one for APAC types (it also checks the
       shared `AP_` columns and that `AMPA2605.dbc` is AM, not AMP), and `tests/test_aq.py`
-      shows a type whose files have three column sets (63, 64 and 74 columns) in one era.
+      shows a type whose files have three column sets (63, 64 and 74 columns) in one era;
+      `tests/test_ar.py` is the shortest APAC example (two column sets).
 5. **Docs:**
     - a page `docs/tables/<code>.md` (copy the structure of `bi.md`, or `am.md` for an APAC
       type: link to [APAC file types](tables/apac.md) for the `AP_` columns and only list
@@ -158,9 +162,13 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       billed late for an earlier one (AQ). Each APAC row should be one `PA_DOCORIG = 'P'`
       row, and `AP_VL_AP` the sum of `PA_VALAPR` over its `P` and `S` rows (AM: exact, and
       AM = `P` rows with `PA_TPFIN = '02'`; AQ: exact, and AQ = `P` rows with `PA_PROC_ID`
-      from `0304020000` to `0304089999`).
+      from `0304020000` to `0304089999`; AR: exact, `P` rows with `PA_PROC_ID LIKE '030401%'`,
+      checked on a month before and after its 2019 procedure change).
       Check whether some other column of `pa` (`PA_TPFIN`, the procedure group) picks out
       exactly your type's rows;
+    - for APAC types, check `AP_CNSPCN` by month and state (`NULL` and `{{{{{{{{{{{{{{{`)
+      before writing anything about patients: from Nov/2025 it is missing on most AR rows
+      (95% in Aug/2026), on 2–22% of AQ rows (SC, 2026), on none in AM;
     - check `uv run mkdocs build --strict` (needs `uv sync --group docs`).
 6. **Check for real** with one small state-month, and paste the output in the PR:
 
@@ -176,7 +184,9 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
     and conversion time, peak RAM, temporary DBF size and the Parquet ratio. BI: a 172 MB
     part with 4.7 M rows took 1.9 GB of RAM and a 1.2 GB temporary DBF. AM: the largest
     file (82 MB, 1.37 M rows) took 28 s and about 1.2 GB of RAM; AQ's (10.5 MB, 102 k
-    rows), 7 s and 0.4 GB. The temporary DBF is
+    rows), 7 s and 0.4 GB. For a type with many tiny files the Parquet ratio is high,
+    because each file has about 20 KB of overhead (AR: 0.81 over its 5,491 files), and
+    small files can take up to 30 s each on the FTP (AR, every month: about 35 min). The temporary DBF is
     (record length × rows): the record length is 1 + the sum of the field widths from the
     header probe.
 

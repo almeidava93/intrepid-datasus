@@ -147,7 +147,12 @@ AQ = FileType("AQ", "APAC Quimioterapia", (
         quantity_cols=dictionary.AQ_QUANTITY_COLS, value_cols=dictionary.AQ_VALUE_COLS),
 ), parquet_ratio=0.45)  # SP Jul/2025 (largest file): 0.44; SC 2024-2026: 0.48
 
-REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA, BI, AM, AQ)}
+AR = FileType("AR", "APAC Radioterapia", (
+    Era("ar", FTP_CURRENT_DIR, 200801, 999912, dictionary.AR,
+        quantity_cols=dictionary.AR_QUANTITY_COLS, value_cols=dictionary.AR_VALUE_COLS),
+), parquet_ratio=0.8)  # all 5,491 files: 0.81 (tiny files, ~20 KB Parquet overhead each)
+
+REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA, BI, AM, AQ, AR)}
 DEFAULT_TABLES = ("PA",)  # what the CLI uses when --table is not given
 
 
