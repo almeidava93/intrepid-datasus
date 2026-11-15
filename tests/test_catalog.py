@@ -17,7 +17,7 @@ def test_parse_name(name, uf, comp, part):
 
 @pytest.mark.parametrize("name", ["PAXX2605.dbc", "PASP2613.dbc", "ABOSP2605.dbc", "PASP2605.dbf", "PASP26051.dbc"])
 def test_parse_name_rejects(name):
-    assert c.parse_name(name) is None
+    assert c.PA.parse(name) is None
 
 
 def test_group_and_select():
@@ -26,15 +26,15 @@ def test_group_and_select():
     parts = c.group(files)
     assert [(p.uf, p.competencia) for p in parts] == [("AC", 202604), ("AC", 202605), ("SP", 202605)]
     sp = parts[-1]
-    assert [f.part for f in sp.files] == ["a", "b"] and sp.size == 3 and sp.key == "SP/202605"
+    assert [f.part for f in sp.files] == ["a", "b"] and sp.size == 3 and sp.key == "PA/SP/202605" and sp.label == "PA SP 2026-05"
     assert sp.signature() == {"PASP2605a.dbc": 1, "PASP2605b.dbc": 2}
-    assert [p.key for p in c.select(parts, {"AC"}, 202605, 202605)] == ["AC/202605"]
+    assert [p.key for p in c.select(parts, {"AC"}, 202605, 202605)] == ["PA/AC/202605"]
     assert len(c.select(parts, None, 202601, 202612)) == 3
 
 
 def test_era_for():
-    assert c.era_for(200712) is c.LEGACY
-    assert c.era_for(200801) is c.CURRENT
+    assert c.PA.era_for(200712).key == "pa_legacy"
+    assert c.PA.era_for(200801).key == "pa"
 
 
 def test_parse_states():

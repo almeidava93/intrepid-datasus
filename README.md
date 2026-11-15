@@ -41,8 +41,17 @@ uv run datasus fetch -s all -f 202605
 
 # preview the plan first
 uv run datasus fetch -s all -f 2024 --dry-run
+
+# choose the SIA file type(s): pa is the default
+uv run datasus fetch -T pa -s AC -f 202605
+uv run datasus fetch -T all -s AC -f 202605
 ```
 
+- `--table/-T`: which SIA file types (tables) to work on: a code like `pa`, several like
+  `pa,bi`, or `all`. Default: `pa`, so commands without it behave as they always have.
+  `available`, `fetch`, `status`, `schema` and `remove` all take it. Each file type is one
+  table family (see [Tables](docs/tables/index.md)); the registered ones are listed in
+  `datasus fetch --help`. (`-t` is `--to`; the table flag is a capital `-T`.)
 - `--states/-s`: `all` (default), codes like `SP,RJ`, or a region: `Norte`, `Nordeste`,
   `Sudeste`, `Sul`, `Centro-Oeste`.
 - `--from/-f`, `--to/-t`: `YYYY` or `YYYYMM`. `--to` defaults to the end of `--from`.
@@ -66,9 +75,11 @@ uv run datasus query "SELECT uf, SUM(PA_QTDAPR) AS procedimentos, SUM(PA_VALAPR)
 uv run datasus query -F my_query.sql -o result.csv     # also .parquet / .json
 uv run datasus query --format csv "SELECT ..." > out.csv
 uv run datasus shell                                    # interactive SQL prompt
-uv run datasus schema                                   # columns + descriptions
-uv run datasus status                                   # what's stored locally
-uv run datasus remove -s RR -f 2026                     # delete local data
+uv run datasus schema                                   # columns + descriptions (pa)
+uv run datasus schema --legacy                          # columns of pa_legacy
+uv run datasus status                                   # what's stored locally (pa)
+uv run datasus status -T all                            # ... for every table
+uv run datasus remove -s RR -f 2026                     # delete local data (pa)
 ```
 
 Tables available in SQL:

@@ -16,8 +16,17 @@ uv run datasus fetch -s all -f 202605
 
 # preview the plan first
 uv run datasus fetch -s all -f 2024 --dry-run
+
+# choose the SIA file type(s): pa is the default
+uv run datasus fetch -T pa -s AC -f 202605
+uv run datasus fetch -T all -s AC -f 202605
 ```
 
+- `--table/-T`: which SIA file types (tables) to work on: a code like `pa`, several like
+  `pa,bi`, or `all`. Default: `pa`, so commands without it behave as they always have.
+  `available`, `fetch`, `status`, `schema` and `remove` all take it. Each file type is one
+  table family (see [Tables](tables/index.md)); the registered ones are listed in
+  `datasus fetch --help`. (`-t` is `--to`; the table flag is a capital `-T`.)
 - `--states/-s`: `all` (default), codes like `SP,RJ`, or a region: `Norte`, `Nordeste`,
   `Sudeste`, `Sul`, `Centro-Oeste`.
 - `--from/-f`, `--to/-t`: `YYYY` or `YYYYMM`. `--to` defaults to the end of `--from`.

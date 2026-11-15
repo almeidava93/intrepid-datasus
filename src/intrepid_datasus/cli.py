@@ -1,4 +1,4 @@
-"""datasus — download and query SIA/SUS outpatient production (Produção Ambulatorial)."""
+"""datasus — download and query SIA/SUS outpatient data (PA, Produção Ambulatorial, by default)."""
 from __future__ import annotations
 
 import re
@@ -15,8 +15,8 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from . import catalog, dictionary, query as q
-from .catalog import ERAS, LEGACY, CURRENT, Partition
+from . import catalog, query as q
+from .catalog import FileType, Partition
 from .store import LockedError, Store, default_root
 
 app = typer.Typer(
@@ -29,15 +29,17 @@ app = typer.Typer(
 console = Console()
 err = Console(stderr=True)
 
-# Parquet is ~37% of the .dbc download size (measured on May/2026).
-PARQUET_RATIO = 0.37
-
 StatesOpt = Annotated[str, typer.Option(
     "--states", "-s",
     help="States: 'all', codes like 'SP,RJ', or a region (Norte, Nordeste, Sudeste, Sul, Centro-Oeste).",
 )]
 FromOpt = Annotated[Optional[str], typer.Option("--from", "-f", help="First month: YYYYMM or YYYY.")]
 ToOpt = Annotated[Optional[str], typer.Option("--to", "-t", help="Last month: YYYYMM or YYYY (default: same as --from).")]
+TableOpt = Annotated[Optional[str], typer.Option(
+    "--table", "-T",
+    help="SIA file types: a code like 'pa', several like 'pa,bi', or 'all' (default: pa). "
+         f"Available: {', '.join(c.lower() for c in catalog.REGISTRY)}.",
+)]
 
 
 # ------------------------------------------------------------------ helpers
@@ -62,7 +64,7 @@ def _range(start: str | None, end: str | None, *, required: bool) -> tuple[int, 
         if start is None:
             if required:
                 raise typer.BadParameter("give a month or year with --from (e.g. --from 2025 or --from 202605)")
-            return LEGACY.first, CURRENT.last
+            return 0, 999912  # every month
         s = catalog.parse_period(start, is_end=False)
         e = catalog.parse_period(end, is_end=True) if end else catalog.parse_period(start, is_end=True)
     except ValueError as ex:
@@ -79,14 +81,28 @@ def _states(value: str) -> set[str] | None:
         raise typer.BadParameter(str(ex)) from None
 
 
-def _eras_for(start: int, end: int) -> tuple[catalog.Era, ...]:
-    return tuple(e for e in ERAS if start <= e.last and end >= e.first)
+def _tables(value: str | None) -> list[FileType]:
+    try:
+        return catalog.parse_tables(value)
+    except ValueError as ex:
+        raise typer.BadParameter(str(ex)) from None
 
 
-def _remote(states: set[str] | None, start: int, end: int) -> list[Partition]:
+def _remote(types: list[FileType], states: set[str] | None, start: int, end: int) -> list[Partition]:
     with console.status("Listing files on ftp.datasus.gov.br ..."):
-        files = catalog.list_remote(_eras_for(start, end))
-    return catalog.select(catalog.group(files), states, start, end)
+        files = catalog.list_remote(types, start, end)
+    return catalog.select(catalog.group(files), states, start, end, {ft.code for ft in types})
+
+
+def _parquet_estimate(parts: list[Partition]) -> float:
+    return sum(p.size * p.file_type.parquet_ratio for p in parts)
+
+
+def _local(store: Store, types: list[FileType], states: set[str] | None, start: int, end: int) -> dict[str, dict]:
+    """Manifest entries (by key) of the chosen tables, states and months."""
+    codes = {ft.code for ft in types}
+    return {k: v for k, v in store.manifest().items()
+            if v["table"] in codes and start <= v["competencia"] <= end and (states is None or v["uf"] in states)}
 
 
 @app.callback()
@@ -111,20 +127,33 @@ def available(
     states: StatesOpt = "all",
     start: FromOpt = None,
     end: ToOpt = None,
+    table: TableOpt = None,
     by: Annotated[str, typer.Option(help="Group rows by 'state' or 'year'.")] = "state",
 ):
-    """Show what DATASUS has on the FTP (nothing is downloaded)."""
+    """Show what DATASUS has on the FTP (nothing is downloaded).
+
+    Examples:  datasus available -s SP -f 2025      datasus available -T all -s AC -f 202605
+    """
+    types = _tables(table)
     s, e = _range(start, end, required=False)
-    parts = _remote(_states(states), s, e)
+    parts = _remote(types, _states(states), s, e)
     if not parts:
         console.print("No files match.")
         return
+    for ft in types:
+        mine = [p for p in parts if p.table == ft.code]
+        if mine:
+            _available_table(ft, mine, by)
+    console.print(f"Estimated local size as Parquet: ~{human(_parquet_estimate(parts))}")
+
+
+def _available_table(ft: FileType, parts: list[Partition], by: str) -> None:
     key = (lambda p: p.uf) if by == "state" else (lambda p: p.competencia // 100)
     groups: dict = defaultdict(list)
     for p in parts:
         groups[key(p)].append(p)
 
-    t = Table(title="Available on DATASUS FTP", show_footer=True)
+    t = Table(title=f"Available on DATASUS FTP: {ft.code.lower()} ({ft.name})", show_footer=True)
     t.add_column("State" if by == "state" else "Year", footer="Total")
     t.add_column("Months", justify="right", footer=f"{len({p.competencia for p in parts}):,}")
     t.add_column("From")
@@ -137,7 +166,6 @@ def available(
         t.add_row(str(k), f"{len(comps):,}", fmt_comp(comps[0]), fmt_comp(comps[-1]),
                   f"{sum(len(p.files) for p in g):,}", human(sum(p.size for p in g)))
     console.print(t)
-    console.print(f"Estimated local size as Parquet: ~{human(sum(p.size for p in parts) * PARQUET_RATIO)}")
 
 
 # -------------------------------------------------------------------- fetch
@@ -147,6 +175,7 @@ def fetch(
     states: StatesOpt = "all",
     start: FromOpt = None,
     end: ToOpt = None,
+    table: TableOpt = None,
     workers: Annotated[int, typer.Option("--workers", "-w", min=1, max=8,
         help="State-months processed in parallel. Each needs a few GB of temporary disk.")] = 3,
     force: Annotated[bool, typer.Option(help="Re-download even if the local copy is current.")] = False,
@@ -160,12 +189,14 @@ def fetch(
     revised (file sizes changed, or re-split into parts) are rebuilt.
 
     Examples:  datasus fetch -s SP -f 2025      datasus fetch -s all -f 202401 -t 202406
+               datasus fetch -T all -s AC -f 202605
     """
     store = _store(ctx)
+    types = _tables(table)
     s, e = _range(start, end, required=True)
-    parts = _remote(_states(states), s, e)
+    parts = _remote(types, _states(states), s, e)
     if not parts:
-        console.print("Nothing on the FTP matches those states and months.")
+        console.print("Nothing on the FTP matches those tables, states and months.")
         raise typer.Exit()
 
     todo = parts if force else [p for p in parts if not store.is_current(p)]
@@ -173,20 +204,20 @@ def fetch(
     console.print(
         f"[bold]{len(parts):,}[/] state-months match: {len(parts) - len(todo):,} already up to date, "
         f"[bold]{len(todo):,}[/] to fetch ({sum(len(p.files) for p in todo):,} files, {human(download)} download, "
-        f"~{human(download * PARQUET_RATIO)} on disk)."
+        f"~{human(_parquet_estimate(todo))} on disk)."
     )
     if not todo:
         raise typer.Exit()
 
     store.root.mkdir(parents=True, exist_ok=True)
     free = shutil.disk_usage(store.root).free
-    need = download * PARQUET_RATIO + min(workers, len(todo)) * 5e9  # + temporary .dbf files
+    need = _parquet_estimate(todo) + min(workers, len(todo)) * 5e9  # + temporary .dbf files
     if free < need:
         err.print(f"[yellow]Warning:[/] {human(free)} free in {store.root.resolve()}, "
                   f"this needs roughly {human(need)} (including temporary files).")
     if dry_run:
         for p in todo[:50]:
-            console.print(f"  {p.uf} {fmt_comp(p.competencia)}  {', '.join(f.name for f in p.files)}  {human(p.size)}")
+            console.print(f"  {p.label}  {', '.join(f.name for f in p.files)}  {human(p.size)}")
         if len(todo) > 50:
             console.print(f"  ... and {len(todo) - 50:,} more")
         raise typer.Exit()
@@ -218,14 +249,14 @@ def fetch(
                                 r = fut.result()
                             except Exception as ex:
                                 failed.append((p, str(ex)))
-                                err.print(f"[red]✗[/] {p.uf} {fmt_comp(p.competencia)}: {ex}")
+                                err.print(f"[red]✗[/] {p.label}: {ex}")
                                 continue
                             store.record(p, r.rows, r.nbytes)
                             done_bytes += p.size
                             rate = done_bytes / max(time.time() - t0, 1)
                             left = (download - done_bytes) / rate if rate else 0
                             console.print(
-                                f"[green]✓[/] [{n_done}/{len(todo)}] {p.uf} {fmt_comp(p.competencia)}: "
+                                f"[green]✓[/] [{n_done}/{len(todo)}] {p.label}: "
                                 f"{r.rows:,} rows, {human(r.nbytes)} ({r.seconds:.0f}s)"
                                 + (f"  — ~{left / 60:.0f} min left" if queue or running else "")
                             )
@@ -250,27 +281,36 @@ def status(
     states: StatesOpt = "all",
     start: FromOpt = None,
     end: ToOpt = None,
+    table: TableOpt = None,
     by: Annotated[str, typer.Option(help="Group rows by 'state', 'year' or 'month'.")] = "state",
 ):
     """Show what is stored locally."""
     store = _store(ctx)
+    types = _tables(table)
     st = _states(states)
     s, e = _range(start, end, required=False)
-    entries = [v for v in store.manifest().values()
-               if s <= v["competencia"] <= e and (st is None or v["uf"] in st)]
-    if not entries:
-        console.print(f"No data in {store.root.resolve()} for that selection. Try: datasus fetch --help")
-        return
-
     keyf = {"state": lambda v: v["uf"], "year": lambda v: v["competencia"] // 100,
             "month": lambda v: v["competencia"]}.get(by)
     if keyf is None:
         raise typer.BadParameter("--by must be state, year or month")
+    entries = list(_local(store, types, st, s, e).values())
+    if not entries:
+        console.print(f"No data in {store.root.resolve()} for that selection. Try: datasus fetch --help")
+        return
+    for ft in types:
+        mine = [v for v in entries if v["table"] == ft.code]
+        if mine:
+            _status_table(store, ft, mine, by, keyf)
+    if by == "state":
+        console.print("[dim]Gaps = months missing between From and To for that state.[/]")
+
+
+def _status_table(store: Store, ft: FileType, entries: list[dict], by: str, keyf) -> None:
     groups: dict = defaultdict(list)
     for v in entries:
         groups[keyf(v)].append(v)
 
-    t = Table(title="Local data", caption=str(store.root.resolve()), show_footer=True)
+    t = Table(title=f"Local data: {ft.code.lower()} ({ft.name})", caption=str(store.root.resolve()), show_footer=True)
     t.add_column({"state": "State", "year": "Year", "month": "Month"}[by], footer="Total")
     if by == "month":
         t.add_column("States", justify="right")
@@ -295,32 +335,42 @@ def status(
         t.add_row(str(k), str(len(comps)), fmt_comp(comps[0]), fmt_comp(comps[-1]),
                   str(gaps) if by == "state" else "", rows, size)
     console.print(t)
-    if by == "state":
-        console.print("[dim]Gaps = months missing between From and To for that state.[/]")
 
 
 # ------------------------------------------------------------------- schema
 @app.command()
 def schema(
     ctx: typer.Context,
-    legacy: Annotated[bool, typer.Option("--legacy", help="Show the 1994-2007 layout (view pa_legacy).")] = False,
+    table: TableOpt = None,
+    legacy: Annotated[bool, typer.Option("--legacy",
+        help="Show the older layout(s) instead of the current one (for pa: view pa_legacy, 1994-2007).")] = False,
 ):
-    """List the columns of the 'pa' view (or 'pa_legacy') with short descriptions."""
-    era = LEGACY if legacy else CURRENT
-    desc = dictionary.LEGACY if legacy else dictionary.CURRENT
+    """List the columns of each chosen table's view with short descriptions.
+
+    Default: the 'pa' view; with --legacy, 'pa_legacy'.
+    Examples:  datasus schema      datasus schema --legacy      datasus schema -T all
+    """
+    types = _tables(table)
     con = q.connect(_store(ctx))
-    if era.view in q.views(con):
-        cols = [(r[0], r[1]) for r in con.execute(f"DESCRIBE {era.view}").fetchall()]
-    else:
-        console.print(f"[dim]No local data for {era.view} yet; showing the documented layout.[/]")
-        cols = [(c, "") for c in desc]
-    t = Table(title=f"View {era.view}")
-    t.add_column("Column", style="bold")
-    t.add_column("Type")
-    t.add_column("Description")
-    for name, typ in cols:
-        t.add_row(name, typ, desc.get(name, ""))
-    console.print(t)
+    have = set(q.views(con))
+    for ft in types:
+        eras = ft.eras[:-1] if legacy else ft.eras[-1:]
+        if not eras:
+            console.print(f"[dim]{ft.code.lower()} has only one layout; showing it.[/]")
+            eras = ft.eras
+        for era in eras:
+            if era.view in have:
+                cols = [(r[0], r[1]) for r in con.execute(f"DESCRIBE {era.view}").fetchall()]
+            else:
+                console.print(f"[dim]No local data for {era.view} yet; showing the documented layout.[/]")
+                cols = [(c, "") for c in era.dictionary]
+            t = Table(title=f"View {era.view}")
+            t.add_column("Column", style="bold")
+            t.add_column("Type")
+            t.add_column("Description")
+            for name, typ in cols:
+                t.add_row(name, typ, era.dictionary.get(name, ""))
+            console.print(t)
 
 
 # -------------------------------------------------------------------- query
@@ -383,7 +433,7 @@ def _stream(con, sql: str, fmt: str) -> None:
 @app.command("query")
 def query_cmd(
     ctx: typer.Context,
-    sql: Annotated[Optional[str], typer.Argument(help="SQL to run. Tables: pa, pa_legacy, pa_raw, pa_legacy_raw, ufs.")] = None,
+    sql: Annotated[Optional[str], typer.Argument(help="SQL to run. Tables: pa, pa_legacy, pa_raw, pa_legacy_raw, ufs, ... (.tables in `datasus shell` lists them).")] = None,
     file: Annotated[Optional[Path], typer.Option("--file", "-F", help="Read the SQL from a file.")] = None,
     output: Annotated[Optional[Path], typer.Option("--output", "-o", help="Write the full result to a file (.csv, .parquet, .json).")] = None,
     fmt: Annotated[Optional[str], typer.Option("--format", help="table (default), csv or json on screen; or force the file format.")] = None,
@@ -417,7 +467,7 @@ def query_cmd(
         if isinstance(ex, (typer.Exit, typer.BadParameter)):
             raise
         err.print(f"[red]{type(ex).__name__}:[/] {ex}")
-        if "pa" in str(ex) and "does not exist" in str(ex):
+        if "does not exist" in str(ex) and any(e.view in str(ex) for e in catalog.all_eras()):
             err.print("No local data for that table yet. Fetch some first: datasus fetch --help")
         raise typer.Exit(1)
 
@@ -475,18 +525,23 @@ def remove(
     states: StatesOpt = "all",
     start: FromOpt = None,
     end: ToOpt = None,
+    table: TableOpt = None,
     yes: Annotated[bool, typer.Option("--yes", "-y", help="Don't ask for confirmation.")] = False,
 ):
-    """Delete local state-months (nothing on DATASUS is touched)."""
+    """Delete local state-months of the chosen tables (nothing on DATASUS is touched).
+
+    Examples:  datasus remove -s SP -f 2025      datasus remove -T all -f 2008 -t 2010
+    """
     store = _store(ctx)
+    types = _tables(table)
     st = _states(states)
     s, e = _range(start, end, required=True)
-    keys = [k for k, v in store.manifest().items()
-            if s <= v["competencia"] <= e and (st is None or v["uf"] in st)]
+    selected = _local(store, types, st, s, e)
+    keys = list(selected)
     if not keys:
         console.print("Nothing stored locally matches.")
         return
-    size = sum(store.manifest()[k]["bytes"] for k in keys)
+    size = sum(v["bytes"] for v in selected.values())
     console.print(f"{len(keys):,} state-months, {human(size)}.")
     if not yes and not typer.confirm("Delete them?", default=False):
         raise typer.Abort()

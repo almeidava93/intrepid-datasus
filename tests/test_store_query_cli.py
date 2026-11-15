@@ -114,9 +114,9 @@ def test_cli_schema(store):
 def test_cli_remove(store):
     r = run(store, "remove", "-s", "SP", "-f", "2026", "-y")
     assert r.exit_code == 0, r.output
-    assert "SP/202605" not in store.manifest()
+    assert "PA/SP/202605" not in store.manifest()
     assert not store.partition_dir("SP", 202605).exists()
-    assert "AC/202604" in store.manifest()
+    assert "PA/AC/202604" in store.manifest()
 
 
 def test_cli_bad_args(store):
