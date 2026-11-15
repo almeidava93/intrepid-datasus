@@ -1,0 +1,60 @@
+site_name: intrepid-datasus
+site_url: https://almeidava93.github.io/intrepid-datasus/
+site_description: Download and query DATASUS SIA/SUS outpatient production data
+repo_url: https://github.com/almeidava93/intrepid-datasus
+repo_name: almeidava93/intrepid-datasus
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+  - Fetching data: fetching.md
+  - Querying: querying.md
+  - Procedure names (SIGTAP): sigtap.md
+  - Things to know about the data: data-notes.md
+  - Development: development.md
+  - API reference:
+      - catalog: reference/catalog.md
+      - convert: reference/convert.md
+      - store: reference/store.md
+      - fetch: reference/fetch.md
+      - query: reference/query.md
+      - sigtap: reference/sigtap.md
+      - dictionary: reference/dictionary.md
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: false
+            show_root_heading: true
+            members_order: source

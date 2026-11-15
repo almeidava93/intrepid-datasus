@@ -5,3 +5,5 @@ data/
 *.dbf
 *.dbf.tmp
 *.parquet.tmp
+site/
+dist/

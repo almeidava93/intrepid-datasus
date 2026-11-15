@@ -1,0 +1,26 @@
+# Querying
+
+```bash
+uv run datasus query "SELECT uf, SUM(PA_QTDAPR) AS procedimentos, SUM(PA_VALAPR) AS valor
+                      FROM pa WHERE competencia BETWEEN 202501 AND 202512
+                      GROUP BY uf ORDER BY procedimentos DESC"
+
+uv run datasus query -F my_query.sql -o result.csv     # also .parquet / .json
+uv run datasus query --format csv "SELECT ..." > out.csv
+uv run datasus shell                                    # interactive SQL prompt
+uv run datasus schema                                   # columns + descriptions
+uv run datasus status                                   # what's stored locally
+uv run datasus remove -s RR -f 2026                     # delete local data
+```
+
+Tables available in SQL:
+
+| Table | Contents |
+|---|---|
+| `pa` | 2008 onward (SIGTAP procedure codes). Quantities as `BIGINT`, values as `DOUBLE`. |
+| `pa_legacy` | 1994–2007 (old layout and procedure table — different columns). |
+| `pa_raw`, `pa_legacy_raw` | Same, every column as text, exactly as DATASUS publishes it. |
+| `ufs` | State code, IBGE code, name and region — join on `uf`. |
+| `procedimentos` | SIGTAP procedure names, group, complexity, funding, price — join `PA_PROC_ID = codigo`. |
+| `cid10`, `ocupacoes` | ICD-10 and CBO (occupation) names — join on `PA_CIDPRI` / `PA_CBOCOD`. |
+| `sigtap_*` | Every SIGTAP table (e.g. `sigtap_rl_procedimento_cid`); `…_all` keeps every version. |

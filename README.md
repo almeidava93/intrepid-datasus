@@ -133,7 +133,11 @@ You can also use the Parquet files from Python, R or any other tool:
 
 ```bash
 uv run pytest
+uv sync --group docs && uv run mkdocs serve   # docs preview
 ```
+
+Pull requests run the tests (`.github/workflows/ci.yml`) and a strict docs build
+(`.github/workflows/docs.yml`); merges to `main` publish the docs to GitHub Pages.
 
 Source: `src/intrepid_datasus/` — `catalog.py` (FTP listing, states, periods), `convert.py`
 (.dbc → Parquet), `store.py` (local layout and manifest), `fetch.py`, `query.py` (DuckDB views),
