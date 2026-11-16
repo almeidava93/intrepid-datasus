@@ -93,7 +93,7 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
         fields, i = [], 32
         while buf[i] != 0x0D:
             f = buf[i:i + 32]
-            fields.append((f[:11].split(b"\0")[0].decode(), chr(f[11]), f[16]))
+            fields.append((f[:11].split(b"\0")[0].decode().strip(), chr(f[11]), f[16]))
             i += 32
         return nrec, fields
 
@@ -103,7 +103,11 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
     ```
 
    Some fields are numeric (`N`, e.g. APAC's `AP_VL_AP`); the converter reads every field as
-   text anyway, so this needs no special handling.
+   text anyway, so this needs no special handling. Field names can be padded with spaces
+   instead of `\0` (PS: `'TIPPRE  '`): the converter strips them, so the column is `TIPPRE`.
+   Look at the raw names (`repr`) when you probe. Probing every month of one state also
+   shows months with *no* file (PS: AC has 159 of 166 months, AP 150): there, a missing
+   state-month means no production, not a failed download.
 2. **Dictionary** (`dictionary.py`): add `BI = {**PARTITION, "COL": "description", ...}`
    with **every** column of the file, plus `BI_QUANTITY_COLS` and `BI_VALUE_COLS` (columns
    to cast; leave empty tuples if none). Cite the official layout document in a comment
@@ -119,6 +123,13 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
    `AP_TIPPRE`, `AP_TPATEN`, `AP_DTOCOR`, `AP_APACANT`). Use `APAC_QUANTITY_COLS` (empty)
    and `APAC_VALUE_COLS` (`AP_VL_AP`). If a shared description turns out wrong for every
    type, fix it in `APAC_COMMON`, not in one type's dict.
+
+   **RAAS types** (PS, SAD) have no `AP_` columns and no APAC number. They share 40 columns
+   (`CNES_EXEC`, `CNS_PAC`, `PA_PROC_ID`, `PA_QTDAPR`, ...): build the dict with
+   `dictionary.raas("SAD", {...own columns...})`, which adds `PARTITION` and `RAAS_COMMON`
+   (including `NAT_JUR`; drop it with `without=` if the type never has it). Use
+   `RAAS_QUANTITY_COLS` (`PA_QTDPRO`, `PA_QTDAPR`) and `RAAS_VALUE_COLS` (empty: RAAS files
+   have no value column). What a RAAS is: `docs/tables/raas.md`.
 3. **Registry** (`catalog.py`): define the file type and add it to `REGISTRY`, keeping the
    order of issue #3 (it is the order of `-T all`, `--help` and the status tables):
 
@@ -156,7 +167,8 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       `tests/test_ar.py` is the shortest APAC example (two column sets), and `tests/test_atd.py`
       the one for a type that starts later than 2008 (it checks `era_for` before its first month);
       `tests/test_an.py` is the one for a discontinued type (real last month, one odd month
-      with an extra column).
+      with an extra column); `tests/test_ps.py` is the one for RAAS types (shared RAAS
+      columns, a space-padded field name, a column present in one odd month and again later).
 5. **Docs:**
     - a page `docs/tables/<code>.md` (copy the structure of `bi.md`, or `am.md` for an APAC
       type: link to [APAC file types](tables/apac.md) for the `AP_` columns and only list
@@ -181,6 +193,10 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       column picks its rows out, and some APACs, such as glaucoma follow-up, are not in AD
       either; ATD: exact, and ATD = `P` rows with `PA_PROC_ID LIKE '0305%'`, from Aug/2014;
       AN: exact, the same selection until May/2014, checked in 2008, 2011 and 2014).
+      RAAS types have no authorisation number: their rows are `PA_DOCORIG = 'B'` (PS) or
+      `'A'` (SAD); compare `COUNT(*)` and `SUM(PA_QTDAPR)` grouped by facility
+      (`CNES_EXEC = PA_CODUNI`), care month (`DT_ATEND = PA_CMP`) and `PA_PROC_ID`
+      (PS: see `docs/tables/ps.md`).
       For a type that replaced another (ATD after AN), compare the months around the switch
       with `pa` too: Jun–Jul/2014 dialysis is in `pa` but mostly in neither AN nor ATD.
       Check whether some other column of `pa` (`PA_TPFIN`, the procedure group) picks out

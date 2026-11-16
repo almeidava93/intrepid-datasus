@@ -45,6 +45,8 @@ nav:
       - ad (APAC Laudos Diversos): tables/ad.md
       - atd (APAC Tratamento Dialítico): tables/atd.md
       - an (APAC Nefrologia): tables/an.md
+      - RAAS file types: tables/raas.md
+      - ps (RAAS Psicossocial): tables/ps.md
       - Lookup tables: tables/lookups.md
       - SIGTAP tables: tables/sigtap.md
   - API reference:

@@ -609,3 +609,136 @@ AN = apac("AN", {
              "(3-20) on 74% of rows; zero on 18%; 21-99 on 7% (e.g. '93', '99': 9.3 without the point, or "
              "filler)." + _AN_TEXT,
 })
+
+
+# ------------------------------------------------------------------- RAAS (shared)
+# Columns shared by the RAAS file types (PS, SAD): Registro das Ações Ambulatoriais de Saúde.
+# No AP_ prefix and no authorisation number. A RAAS is one care episode (facility + patient +
+# start date) re-recorded every month with the actions done that month; the files hold one row
+# per action line, with the episode's fields repeated. Same names and meaning in both layouts.
+# Sources: DATASUS, "Informe Técnico SIASUS" (Jul/2019), section 4 "Registro das Ações
+# Ambulatoriais de Saúde - RAAS" (4.1 SAD, 4.2 PS), URL above, for the columns; Ministério da
+# Saúde, "Manual Operacional RAAS" v1.5 (RAAS 01.40), for how a RAAS is recorded. The Informe
+# names some PS columns differently from the files (QT_APRES / QT_APROV, SERV, CLASS); the names
+# below are those in the files. Values described here were checked on the whole PS history; SAD
+# may differ: give it its own overrides in raas("SAD", {...}).
+# What RAAS is and how it reaches pa (PA_DOCORIG = 'A' / 'B'): docs/tables/raas.md.
+RAAS_QUANTITY_COLS = ("PA_QTDPRO", "PA_QTDAPR")
+RAAS_VALUE_COLS: tuple[str, ...] = ()  # RAAS files carry no value column (pa has R$ 0 for these rows)
+
+RAAS_COMMON = {
+    "CNES_EXEC": "Facility code (CNES, 7 digits) that delivered the care. Same as PA_CODUNI.",
+    "GESTAO": "Managing authority: UF code + IBGE municipality code of the manager, or UF + '0000' "
+              "when the facility is under state management.",
+    "CONDIC": "Type of management the state/municipality is qualified for (values seen: PG, EP, MN).",
+    "UFMUN": "Municipality of the FACILITY (IBGE, 6 digits). First 2 digits = state. Same as PA_UFMUN.",
+    "TPUPS": "Facility type, CNES codes (70 = CAPS, 36 = specialised clinic, 07 = specialised hospital, ...).",
+    "MN_IND": "Facility is maintained by a body (M) or independent (I; 'U' in the files).",
+    "CNPJCPF": "Facility tax ID (CNPJ).",
+    "CNPJMNT": "Maintaining body's CNPJ, or zeros if none.",
+    "DT_PROCESS": "Processing month (YYYYMM). Equals competencia. Same as PA_MVM.",
+    "DT_ATEND": "Month the care was delivered (competência, YYYYMM). Earlier than DT_PROCESS on late "
+                "reports. Same as PA_CMP.",
+    "CNS_PAC": "Patient's national health card (CNS), ENCODED by DATASUS (not the real number), with the same "
+               "encoding as the APAC files' AP_CNSPCN. Same value = same patient within the data; cannot be "
+               "linked to other systems. '{{{{{{{{{{{{{{{' = encoded blank (no CNS).",
+    "DTNASC": "Patient's date of birth (YYYYMMDD).",
+    "TPIDADEPAC": "Unit of IDADEPAC, computed from the date of birth: 2 = days, 3 = months, 4 = years, "
+                  "5 = 100 years or more (age = 100 + IDADEPAC), 9 = not informed.",
+    "IDADEPAC": "Patient age (2 characters), in the unit given by TPIDADEPAC.",
+    "NACION_PAC": "Patient nationality (2 characters; 01 = Brazilian).",
+    "SEXOPAC": "Patient sex (M, F).",
+    "RACACOR": "Race/colour (01 white, 02 black, 03 brown, 04 yellow, 05 indigenous, 99 not informed).",
+    "ETNIA": "Indigenous ethnicity code (Portaria SAS 508/2010, annex I); only when RACACOR = 05.",
+    "MUNPAC": "Municipality where the PATIENT lives (IBGE, 6 digits).",
+    "MOT_COB": "Reason for exit or continuation (motivo de saída/permanência), APAC codes: 21 = continues "
+               "(nature of the disease), 28 = continues (other reasons), 11 = discharge cured, 12 = improved, "
+               "15 = discharge with follow-up elsewhere, 18 = other discharge (e.g. abandonment), 31 = transfer, "
+               "4x = death.",
+    "DT_MOTCOB": "Date of the discharge, transfer or death (YYYYMMDD); usually NULL even then (use DT_FIM).",
+    "CATEND": "Type of care (caráter de atendimento): 01 = elective, 02 = urgent, 03-06 = work/traffic "
+              "accident and other external causes.",
+    "CIDPRI": "Main diagnosis of the episode, ICD-10 (no dot, 3 or 4 characters). Joins cid10.",
+    "CIDASSOC": "Associated cause, ICD-10 (no dot), or NULL. Joins cid10.",
+    "ORIGEM_PAC": "Where the patient came from (origem do usuário), set in the first month of the episode and "
+                  "copied forward; codes 01-06 (the code list is not in the Informe).",
+    "DT_INICIO": "Start date of the episode (admission) at this facility (YYYYMMDD). With CNES_EXEC, CNS_PAC "
+                 "and DT_ATEND it identifies the RAAS (episode-month).",
+    "DT_FIM": "End date of the episode (YYYYMMDD); NULL while the patient stays in care (DESTINOPAC = '00').",
+    "COB_ESF": "Patient's area is covered by the Family Health Strategy (ESF): S = yes, N = no.",
+    "CNES_ESF": "CNES of the Family Health unit of the patient's area (when COB_ESF = 'S').",
+    "DESTINOPAC": "Destination of the patient (destino do usuário): 00 = stays in care (permanência; the RAAS "
+                  "continues next month); any other code closes the episode and comes with DT_FIM (code list "
+                  "not in the Informe).",
+    "PA_PROC_ID": "Procedure (ação realizada), SIGTAP code (10 digits). Same as PA_PROC_ID. Joins procedimentos.",
+    "PA_QTDPRO": "Quantity submitted (number). Same as PA_QTDPRO.",
+    "PA_QTDAPR": "Quantity approved (number). Sum this, don't count rows. Same as PA_QTDAPR.",
+    "PA_SRV": "Specialised service code (CNES service, 3 digits). Same as the first part of PA_SRV_C.",
+    "PA_CLASS_S": "Service classification code (3 digits). Same as the second part of PA_SRV_C.",
+    "INICIO": "First day in care in this month (YYYYMMDD; the Informe says DDMMAAAA, wrong). Filled on one "
+              "row per episode-month only (the row with QTDPCN = '1'); NULL on the others.",
+    "FIM": "Last day in care in this month (YYYYMMDD). Filled like INICIO.",
+    "PERMANEN": "Days in care in this month = FIM - INICIO + 1 (text, 1-31). Filled like INICIO.",
+    "QTDATE": "'1' on one row per episode-month (the episode's summary line), '0' on the other rows.",
+    "QTDPCN": "'1' on one row per episode-month, '0' on the others: SUM(QTDPCN::INT) = number of patient-"
+              "months (RAAS). Same rows as QTDATE = '1'.",
+    "NAT_JUR": "Facility legal nature (natureza jurídica code, IBGE CONCLA table: 1244 = municipality, "
+               "1031 = municipal executive body, ...). From Jul/2016; NULL before.",
+}
+
+
+def raas(code: str, own: dict[str, str], without: tuple[str, ...] = ()) -> dict[str, str]:
+    """Dictionary of a RAAS file type: partition columns, the shared RAAS columns (minus
+    ``without``) and the type's own columns (``own``, which may also override shared ones)."""
+    return {
+        **PARTITION,
+        "competencia": "Partition: month of the file (YYYYMM). Equals DT_PROCESS (processing month).",
+        "uf": "Partition: state of the file (SP, RJ, ...). Same as the facility's state.",
+        "_ARQUIVO_ORIGEM": f"Original DATASUS file this row came from (e.g. {code}SP2605.dbc).",
+        **{k: v for k, v in RAAS_COMMON.items() if k not in without},
+        **own,
+    }
+
+
+# ------------------------------------------------------------------- PS
+# RAAS Psicossocial (Atenção Psicossocial: CAPS), files PS<UF><YY><MM>.dbc, Nov/2012 onward (the
+# CAPS care billed on APAC in AD until Dec/2012). One layout: the RAAS columns plus TIPPRE, SIT_RUA,
+# TP_DROGA, LOC_REALIZ (44); NAT_JUR (45th, last) in the Oct/2014 files and from Jul/2016 (every
+# month of SP probed). Source: "Informe Técnico SIASUS" (Jul/2019), section 4.2 "Layout do arquivo
+# de RAAS - Psicossocial: PS*.DBF" (URL above). PS rows are the pa rows with PA_DOCORIG = 'B'
+# (same rows and quantities, R$ 0): never sum ps and pa together. Details: docs/tables/ps.md.
+PS_QUANTITY_COLS = RAAS_QUANTITY_COLS
+PS_VALUE_COLS = RAAS_VALUE_COLS
+
+PS = raas("PS", {
+    "TPUPS": "Facility type, CNES codes: 70 = CAPS on 99.3% of rows; 36 = specialised clinic, "
+             "07 = specialised hospital.",
+    "TIPPRE": "Provider type: real codes until Dec/2013 (50 on 92% of rows, 61, 40, 60, 20, 30), then '00' "
+              "on more and more rows, and only '00' from Nov/2015. (The DBF field name is space-padded, "
+              "'TIPPRE  '; the converter strips it.)",
+    "PA_PROC_ID": "Action (ação realizada), SIGTAP 030108xxxx, CAPS care: 0301080208 individual care (43% of "
+                  "rows), 0301080216 group care, 0301080194 day-time stay (acolhimento diurno), 0301080224 "
+                  "family care, 0301080283 expressive practices, 0301080348 psychosocial rehabilitation, "
+                  "0301080275 body practices, 0301080291 crisis care, 0301080240 home visit, 0301080356 "
+                  "contractuality in the community, 0301080020 night stay, 0301080046 therapeutic residence, "
+                  "0301080038 third-shift stay. Joins procedimentos.",
+    "PA_QTDAPR": "Quantity approved (number). Sum this, don't count rows. 0 on 5-11% of rows (rejected). "
+                 "Same as PA_QTDAPR.",
+    "PA_SRV": "Specialised service: always 115 (psychosocial care).",
+    "PA_CLASS_S": "Service classification (with PA_SRV = 115): 002 on 99.5% of rows; also 001, 004, 005.",
+    "CIDPRI": "Main diagnosis of the episode, ICD-10 (no dot, 3 or 4 characters: both 'F20' and 'F200' "
+              "occur). Almost always chapter F: F99, F20/F200 schizophrenia, F102/F192 alcohol / multiple "
+              "drug dependence, F29, F32, F31. Joins cid10 (which has both 3- and 4-character codes).",
+    "ORIGEM_PAC": "Where the patient came from (origem do usuário), set in the first month and copied forward: "
+                  "01 (51% of rows; presumably spontaneous demand), 02 (37%; presumably primary care), 03-06 "
+                  "(2-3% each). The code list is not in the Informe.",
+    "SIT_RUA": "Patient lives on the street (S = yes, 2.4% of rows; N = no). Asked again every month.",
+    "TP_DROGA": "Drugs used, letters combined: A = alcohol, C = crack, O = other ('AO', 'ACO', ...; a few "
+                "'N', 'NNN', spaces). NULL = no drug use informed (77% of rows: 98% in 2013, 72-82% each "
+                "year since 2014).",
+    "LOC_REALIZ": "Where the action took place: C = at the CAPS (98%), T = in the community (território). "
+                  "Home visits (0301080240) are T on 36% of rows.",
+    "NAT_JUR": "Facility legal nature (IBGE CONCLA code: 1244 = municipality 67% of rows, 1031 = municipal "
+               "executive body 13%, 1023 = state / Federal District executive body, 3999 = private association, ...). From Jul/2016; NULL before, except in the "
+               "Oct/2014 files (the column was there that month only).",
+})

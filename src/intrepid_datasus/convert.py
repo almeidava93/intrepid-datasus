@@ -28,7 +28,8 @@ def read_dbf_header(path: Path) -> tuple[int, int, int, list[tuple[str, int, int
             d = fh.read(32)
             if not d or d[0] == 0x0D:
                 break
-            fields.append((d[:11].split(b"\x00")[0].decode("ascii"), off, d[16]))
+            # strip: some names are space-padded (PS files have "TIPPRE  ")
+            fields.append((d[:11].split(b"\x00")[0].decode("ascii").strip(), off, d[16]))
             off += d[16]
     if off != rlen:
         raise ValueError(f"{path.name}: field widths add up to {off}, record length is {rlen}")
