@@ -192,7 +192,12 @@ ACF = FileType("ACF", "APAC Confecção de Fístula", (  # arteriovenous fistula
         quantity_cols=dictionary.ACF_QUANTITY_COLS, value_cols=dictionary.ACF_VALUE_COLS),
 ), parquet_ratio=2.3)  # all 3,795 files: 75.7 MB Parquet / 32.4 MB .dbc (tiny files, ~8.5 KB each)
 
-REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA, BI, AM, AQ, AR, AD, ATD, AN, PS, SAD, AB, ABO, ACF)}
+AMP = FileType("AMP", "APAC Acompanhamento Multiprofissional", (  # pre-dialysis CKD follow-up, with ATD
+    Era("amp", FTP_CURRENT_DIR, 201603, 999912, dictionary.AMP,
+        quantity_cols=dictionary.AMP_QUANTITY_COLS, value_cols=dictionary.AMP_VALUE_COLS),
+), parquet_ratio=1.85)  # all 903 files: 23.0 MB Parquet / 12.4 MB .dbc (tiny files, ~14 KB each)
+
+REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA, BI, AM, AQ, AR, AD, ATD, AN, PS, SAD, AB, ABO, ACF, AMP)}
 DEFAULT_TABLES = ("PA",)  # what the CLI uses when --table is not given
 
 

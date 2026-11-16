@@ -46,10 +46,10 @@ not a SIGTAP code and does not join `procedimentos`.
 | `PA_CIDPRI` | text | Main diagnosis (ICD-10). | Yes |
 | `PA_CIDSEC` | text | Secondary diagnosis (ICD-10). | Yes |
 | `PA_MORFOL` | text | Tumour morphology (oncology APAC). | — |
-| `PA_CNPJ_CC` | text | CNPJ for credit assignment. | Yes |
-| `PA_RCB` | text | Undocumented; present in late files. | — |
-| `PA_RCBDF` | text | Undocumented; present in late files. | — |
-| `PA_NH` | text | Undocumented; present in late files. | — |
+| `PA_CNPJ_CC` | text | CNPJ for credit assignment (from 2003). | Yes |
+| `PA_RCB` | text | Undocumented, from 2003; looks like the month the production was received (`AAAAMM`: `200702` on every row of AC, Jan/2007). | — |
+| `PA_RCBDF` | text | Undocumented, from 2003 (`0` on every row of AC, Jan/2007). | — |
+| `PA_NH` | text | Undocumented, from 2004: a code `01`–`08`, probably the facility's hierarchy level (*nível de hierarquia*). | — |
 | `_ARQUIVO_ORIGEM` | text | DATASUS file the row came from. | Yes |
 | `competencia` | `INTEGER` | Partition: month of the file (`YYYYMM`). | Yes |
 | `uf` | text | Partition: state of the file. | Yes |

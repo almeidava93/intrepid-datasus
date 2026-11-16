@@ -4,6 +4,9 @@ A command-line tool to **download and query SIA/SUS – Produção Ambulatorial*
 care paid by Brazil's public health system, SUS), straight from the DATASUS FTP.
 
 - Every state, every month from **Jul/1994** to the latest release.
+- Besides PA, **every other SIA/SUS file type** DATASUS publishes (`-T all`): BPA-I (BI), the ten APAC
+  types (AM, AQ, AR, AD, ATD, AN, AB, ABO, ACF, AMP: medicines, oncology, dialysis, ...) and the two RAAS
+  types (PS, SAD), each in its own tables; see [Tables](tables/index.md).
 - Fetch **all or selected states** (or whole regions) over **any range of months**.
 - Data is stored locally as Parquet and queried with **SQL (DuckDB)** — fast, and a
   full month (~70M rows) needs only a few GB of RAM.

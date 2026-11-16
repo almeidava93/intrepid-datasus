@@ -29,6 +29,8 @@ views over the local Parquet store, so a table only exists once its data has bee
 | `abo_raw` | same | same, every column as text | [abo](abo.md#abo-vs-abo_raw) |
 | `acf` | `datasus fetch -T acf` (Aug/2014 onward) | one APAC for the creation of an arteriovenous fistula (dialysis access), per month; also in `pa` | [acf](acf.md), [APAC](apac.md) |
 | `acf_raw` | same | same, every column as text | [acf](acf.md#acf-vs-acf_raw) |
+| `amp` | `datasus fetch -T amp` (Mar/2016 onward) | one month of a pre-dialysis kidney disease follow-up APAC (patient); also in `pa` | [amp](amp.md), [APAC](apac.md) |
+| `amp_raw` | same | same, every column as text | [amp](amp.md#amp-vs-amp_raw) |
 | `ps` | `datasus fetch -T ps` (Nov/2012 onward) | one action line of a CAPS patient's monthly RAAS; also in `pa` | [ps](ps.md), [RAAS](raas.md) |
 | `ps_raw` | same | same, every column as text | [ps](ps.md#ps-vs-ps_raw) |
 | `sad` | `datasus fetch -T sad` (Apr/2012 to Oct/2018) | one action line of a home-care patient's monthly RAAS; also in `pa` | [sad](sad.md), [RAAS](raas.md) |
@@ -61,17 +63,18 @@ named after its code in lowercase: a typed view (`pa`) and a text-only `_raw` vi
 | AB | `ab` | APAC Cirurgia Bariátrica (follow-up after surgery, 2008 to Apr/2017) | `ab`, `ab_raw` | [ab](ab.md) |
 | ABO | `abo` | APAC Acompanhamento Pós-Cirurgia Bariátrica (follow-up after surgery, 2014 onward; replaces AB) | `abo`, `abo_raw` | [abo](abo.md) |
 | ACF | `acf` | APAC Confecção de Fístula (arteriovenous fistula for dialysis, Aug/2014 onward) | `acf`, `acf_raw` | [acf](acf.md) |
+| AMP | `amp` | APAC Acompanhamento Multiprofissional (chronic kidney disease before dialysis, Mar/2016 onward) | `amp`, `amp_raw` | [amp](amp.md) |
 | PS | `ps` | RAAS Psicossocial (CAPS, Nov/2012 onward) | `ps`, `ps_raw` | [ps](ps.md) |
 | SAD | `sad` | RAAS Atenção Domiciliar (home care, Apr/2012 to Oct/2018) | `sad`, `sad_raw` | [sad](sad.md) |
 
-AM, AQ, AR, AD, ATD, AN, AB, ABO and ACF are the first of the APAC file types (authorisations for high-cost
-treatments: AM, AQ, AR, AD, ATD, AN, AB, ABO, ACF, ...). What an APAC is, how its months continue and the `AP_` columns they all
+AM, AQ, AR, AD, ATD, AN, AB, ABO, ACF and AMP are the APAC file types (authorisations for high-cost
+or long treatments). What an APAC is, how its months continue and the `AP_` columns they all
 share are described once, on the [APAC file types](apac.md) page. PS and SAD are the RAAS file types
 (records of continuous care: CAPS, home care), described on [RAAS file types](raas.md).
 
 Choose file types with `--table/-T` in `available`, `fetch`, `status`, `schema` and `remove`
-(`-T pa`, `-T pa,bi`, `-T all`). Without it, commands work on PA. More file types are being
-added one by one (issue #3 on GitHub).
+(`-T pa`, `-T pa,bi`, `-T all`). Without it, commands work on PA. All 14 SIA file types that
+DATASUS publishes are supported (issue #3), PA in two layouts: 15 pairs of views.
 
 To see what exists in your own store, and every column with its description:
 
@@ -159,6 +162,13 @@ acf ── AP_PRIPAL ──► procedimentos (codigo)    always 0418010030 (arte
  │ ── AP_CNSPCN  ──► atd, an, ad (AP_CNSPCN)    same patient's dialysis, catheters and grafts
  └─── AP_AUTORIZ, AP_CMP ──► pa (PA_AUTORIZ, PA_CMP, same competencia and uf)
 
+amp ── AP_PRIPAL ──► procedimentos (codigo)    0301130051 / 0301130060 (CKD stage 4 / 5, pre-dialysis)
+ │ ── AP_CIDCAS  ──► cid10 (codigo)
+ │ ── uf         ──► ufs (uf)
+ │ ── LEFT(AP_MUNPCN, 2) ──► ufs (ibge)
+ │ ── AP_CNSPCN  ──► atd, acf, ad (AP_CNSPCN)    same patient's later dialysis, fistula, catheters
+ └─── AP_AUTORIZ, AP_CMP ──► pa (PA_AUTORIZ, PA_CMP, same competencia and uf)
+
 ps ── PA_PROC_ID ──► procedimentos (codigo)    CAPS action (030108...)
  │ ── CIDPRI     ──► cid10 (codigo)
  │ ── uf         ──► ufs (uf)
@@ -182,8 +192,9 @@ rows with `PA_DOCORIG = 'P'` (see [am](am.md#how-am-relates-to-pa-double-countin
 [atd](atd.md#how-atd-relates-to-pa-double-counting)), `an` rows (see
 [an](an.md#how-an-relates-to-pa-double-counting)), `ab` rows (see
 [ab](ab.md#how-ab-relates-to-pa-double-counting)), `abo` rows (see
-[abo](abo.md#how-abo-relates-to-pa-double-counting)) and `acf` rows (see
-[acf](acf.md#how-acf-relates-to-pa-double-counting)); from 2014 `ab` rows are also `abo` rows. `ps` rows are the `pa` rows with
+[abo](abo.md#how-abo-relates-to-pa-double-counting)), `acf` rows (see
+[acf](acf.md#how-acf-relates-to-pa-double-counting)) and `amp` rows (see
+[amp](amp.md#how-amp-relates-to-pa-double-counting)); from 2014 `ab` rows are also `abo` rows. `ps` rows are the `pa` rows with
 `PA_DOCORIG = 'B'` (see [ps](ps.md#how-ps-relates-to-pa-double-counting)), and `sad` rows the `pa`
 rows with `PA_DOCORIG = 'A'` (see [sad](sad.md#how-sad-relates-to-pa-double-counting)).
 
