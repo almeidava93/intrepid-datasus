@@ -177,7 +177,12 @@ SAD = FileType("SAD", "RAAS Atenção Domiciliar", (  # discontinued: last file 
         quantity_cols=dictionary.SAD_QUANTITY_COLS, value_cols=dictionary.SAD_VALUE_COLS),
 ), parquet_ratio=0.89)  # all 1,088 files: 47.3 MB Parquet / 53.4 MB .dbc (tiny files)
 
-REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA, BI, AM, AQ, AR, AD, ATD, AN, PS, SAD)}
+AB = FileType("AB", "APAC Cirurgia Bariátrica", (  # follow-up; data ends Apr/2017, + a copy of ABO Jan-Jul/2025
+    Era("ab", FTP_CURRENT_DIR, 200801, 202507, dictionary.AB,
+        quantity_cols=dictionary.AB_QUANTITY_COLS, value_cols=dictionary.AB_VALUE_COLS),
+), parquet_ratio=1.2)  # all 635 files: 19.3 MB Parquet / 16.1 MB .dbc (tiny files, ~25 KB each)
+
+REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA, BI, AM, AQ, AR, AD, ATD, AN, PS, SAD, AB)}
 DEFAULT_TABLES = ("PA",)  # what the CLI uses when --table is not given
 
 
