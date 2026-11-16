@@ -1,10 +1,10 @@
 # ab — APAC Cirurgia Bariátrica (follow-up after bariatric surgery), Jan/2008 to Apr/2017
 
 **Source:** `ABufaamm.dbc` files in `ftp.datasus.gov.br/dissemin/publicos/SIASUS/200801_/Dados`
-(e.g. `ABSP1606.dbc`). No state is split into parts. Careful: ABO files also start with `AB`
+(e.g. `ABSP1606.dbc`). No state is split into parts. Careful: [ABO](abo.md) files also start with `AB`
 (`ABOSP1606.dbc`); `datasus` matches the full name, so it never mixes them.
-**Coverage:** 635 files: Jan/2008 to Apr/2017 (110 months, 544 files), then **again Jan–Jul/2025**
-(7 months, 91 files), nothing in between. The 2025 files are an exact copy of ABO for those
+**Coverage:** 635 files: Jan/2008 to Apr/2017 (110 months, 544 files: none for Nov–Dec/2016), then
+**again Jan–Jul/2025** (7 months, 91 files), nothing in between. The 2025 files are an exact copy of ABO for those
 months (see [AB and ABO](#ab-and-abo)). Few states: SP from 2008, RS from Oct/2008, PR from
 2009, PE from Jun/2009, TO from 2010, SC from Apr/2010; RN from 2016; MG and DF in Dec/2011 only (MG again in 2025);
 16 states in 2025.
@@ -32,7 +32,7 @@ continuation and the patient identifier, and describes the `AP_` columns.
 
 DATASUS publishes the same follow-up APACs in two file types:
 
-| | AB | [ABO](apac.md) (*Acompanhamento Pós-Cirurgia Bariátrica*, issue #15) |
+| | AB | [ABO](abo.md) (*Acompanhamento Pós-Cirurgia Bariátrica*) |
 |---|---|---|
 | Months | Jan/2008 – Apr/2017, Jan–Jul/2025 | Jan/2014 – Aug/2026 |
 | Layout | old laudo's columns (`AB_PROCAIH`, `AB_PONTBAR`, ...), new laudo packed into them from Apr/2013 | new laudo in its own columns (`AP_COMORB`, `AP_CID_C1`…, `AP_MEDICAM`, ...), plus the old `AB_` names |
@@ -42,19 +42,25 @@ Where both exist, **every AB row is also in ABO** (same `AP_AUTORIZ`, `AP_CMP`, 
 month; checked for Jan/2014, Jun/2016, Apr/2017, Jan/2025 and Jul/2025). In Jan–Jul/2025 the two
 files are identical row for row (2,980 rows in Jan, 2,544 in Jul). In 2014–2017 ABO has more:
 1,799 vs 1,734 rows in Jan/2014, 4,246 vs 4,034 in Jun/2016, 4,876 vs 4,307 in Apr/2017,
-the difference being whole states (MG, ES, CE, BA) that AB lacks. AB stops in Apr/2017 while ABO
-goes on (5,804 rows in May/2017).
+the difference being whole states (MG, ES, CE, BA) that AB lacks. AB has no files for Nov–Dec/2016
+(ABO: 4,633 and 5,040 rows) and stops in Apr/2017 while ABO goes on (5,804 rows in May/2017).
+Over Jan/2014–Apr/2017 and Jan–Jul/2025, all 145,425 AB rows are in ABO.
 
 So:
 
 - **Before Jan/2014, AB is the only source** of these APACs.
-- **From Jan/2014, use ABO** for counts: it is complete. Never add AB and ABO.
-- AB still has fields that ABO drops: in the rows compared, ABO's `AB_IMC` (BMI) is empty and
-  the % of excess weight and kg lost are gone, while AB keeps them in `AB_IMC` and `AB_PROCAIH`.
+- **From Jan/2014, use ABO** for counts: it is complete. Never add AB and ABO. For one series,
+  split on the file month (`ab WHERE competencia < 201401`, then all of `abo`), not on `AP_CMP`:
+  both types bill late months of 2013 in their 2014 files (see
+  [abo](abo.md#ab-and-abo)).
+- AB still has fields that ABO drops: ABO's `AB_IMC` (BMI) is empty on every row and the % of
+  excess weight and kg lost are gone, while AB keeps them in `AB_IMC` and `AB_PROCAIH`.
   ABO, on the other hand, has the surgery as a SIGTAP code and the comorbidities and habits in
-  their own columns. Join the two on `AP_AUTORIZ`, `AP_CMP`, `competencia` and `uf` to get both.
+  their own columns (two of them swapped, see [abo](abo.md#quirks-of-the-laudo-columns)). Join the
+  two on `AP_AUTORIZ`, `AP_CMP`, `competencia` and `uf` to get both.
 
-The *pre*-surgery follow-up (`0301120080`, *acompanhamento pré-cirurgia bariátrica*) is not in AB.
+The *pre*-surgery follow-up (`0301120080`, *acompanhamento pré-cirurgia bariátrica*) is not in AB,
+nor in ABO: only `pa` has it.
 
 ## One row is one APAC-month, about one patient-month
 

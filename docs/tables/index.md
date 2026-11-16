@@ -25,6 +25,8 @@ views over the local Parquet store, so a table only exists once its data has bee
 | `an_raw` | same | same, every column as text | [an](an.md#an-vs-an_raw) |
 | `ab` | `datasus fetch -T ab` (Jan/2008 to Apr/2017, Jan–Jul/2025) | one bariatric follow-up APAC (patient), per month; also in `pa` | [ab](ab.md), [APAC](apac.md) |
 | `ab_raw` | same | same, every column as text | [ab](ab.md#ab-vs-ab_raw) |
+| `abo` | `datasus fetch -T abo` (Jan/2014 onward) | one post-bariatric follow-up APAC (patient), per month; also in `pa`; the same APACs as `ab` from 2014 | [abo](abo.md), [APAC](apac.md) |
+| `abo_raw` | same | same, every column as text | [abo](abo.md#abo-vs-abo_raw) |
 | `ps` | `datasus fetch -T ps` (Nov/2012 onward) | one action line of a CAPS patient's monthly RAAS; also in `pa` | [ps](ps.md), [RAAS](raas.md) |
 | `ps_raw` | same | same, every column as text | [ps](ps.md#ps-vs-ps_raw) |
 | `sad` | `datasus fetch -T sad` (Apr/2012 to Oct/2018) | one action line of a home-care patient's monthly RAAS; also in `pa` | [sad](sad.md), [RAAS](raas.md) |
@@ -55,11 +57,12 @@ named after its code in lowercase: a typed view (`pa`) and a text-only `_raw` vi
 | ATD | `atd` | APAC Tratamento Dialítico | `atd`, `atd_raw` | [atd](atd.md) |
 | AN | `an` | APAC Nefrologia (2008 to Jul/2014) | `an`, `an_raw` | [an](an.md) |
 | AB | `ab` | APAC Cirurgia Bariátrica (follow-up after surgery, 2008 to Apr/2017) | `ab`, `ab_raw` | [ab](ab.md) |
+| ABO | `abo` | APAC Acompanhamento Pós-Cirurgia Bariátrica (follow-up after surgery, 2014 onward; replaces AB) | `abo`, `abo_raw` | [abo](abo.md) |
 | PS | `ps` | RAAS Psicossocial (CAPS, Nov/2012 onward) | `ps`, `ps_raw` | [ps](ps.md) |
 | SAD | `sad` | RAAS Atenção Domiciliar (home care, Apr/2012 to Oct/2018) | `sad`, `sad_raw` | [sad](sad.md) |
 
-AM, AQ, AR, AD, ATD, AN and AB are the first of the APAC file types (authorisations for high-cost
-treatments: AM, AQ, AR, AD, ATD, AN, AB, ...). What an APAC is, how its months continue and the `AP_` columns they all
+AM, AQ, AR, AD, ATD, AN, AB and ABO are the first of the APAC file types (authorisations for high-cost
+treatments: AM, AQ, AR, AD, ATD, AN, AB, ABO, ...). What an APAC is, how its months continue and the `AP_` columns they all
 share are described once, on the [APAC file types](apac.md) page. PS and SAD are the RAAS file types
 (records of continuous care: CAPS, home care), described on [RAAS file types](raas.md).
 
@@ -138,6 +141,14 @@ ab ── AP_PRIPAL  ──► procedimentos (codigo)    always 0301120056 (foll
  │ ── LEFT(AP_MUNPCN, 2) ──► ufs (ibge)
  └─── AP_AUTORIZ, AP_CMP ──► pa (PA_AUTORIZ, PA_CMP, same competencia and uf)
 
+abo ── AP_PRIPAL ──► procedimentos (codigo)    always 0301120056 (follow-up after bariatric surgery)
+ │ ── AB_PROCAIH ──► procedimentos (codigo)    the surgery
+ │ ── AP_CIDCAS, AP_CID_C1..C5, AP_CID_CO ──► cid10 (codigo)
+ │ ── uf         ──► ufs (uf)
+ │ ── LEFT(AP_MUNPCN, 2) ──► ufs (ibge)
+ │ ── AP_AUTORIZ, AP_CMP ──► ab (same APACs, 2014-2017 and 2025)
+ └─── AP_AUTORIZ, AP_CMP ──► pa (PA_AUTORIZ, PA_CMP, same competencia and uf)
+
 ps ── PA_PROC_ID ──► procedimentos (codigo)    CAPS action (030108...)
  │ ── CIDPRI     ──► cid10 (codigo)
  │ ── uf         ──► ufs (uf)
@@ -159,8 +170,9 @@ rows with `PA_DOCORIG = 'P'` (see [am](am.md#how-am-relates-to-pa-double-countin
 [ar](ar.md#how-ar-relates-to-pa-double-counting)), `ad` rows (see
 [ad](ad.md#how-ad-relates-to-pa-double-counting)), `atd` rows (see
 [atd](atd.md#how-atd-relates-to-pa-double-counting)), `an` rows (see
-[an](an.md#how-an-relates-to-pa-double-counting)) and `ab` rows (see
-[ab](ab.md#how-ab-relates-to-pa-double-counting)). `ps` rows are the `pa` rows with
+[an](an.md#how-an-relates-to-pa-double-counting)), `ab` rows (see
+[ab](ab.md#how-ab-relates-to-pa-double-counting)) and `abo` rows (see
+[abo](abo.md#how-abo-relates-to-pa-double-counting)); from 2014 `ab` rows are also `abo` rows. `ps` rows are the `pa` rows with
 `PA_DOCORIG = 'B'` (see [ps](ps.md#how-ps-relates-to-pa-double-counting)), and `sad` rows the `pa`
 rows with `PA_DOCORIG = 'A'` (see [sad](sad.md#how-sad-relates-to-pa-double-counting)).
 
