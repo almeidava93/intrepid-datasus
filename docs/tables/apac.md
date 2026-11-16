@@ -16,7 +16,7 @@ month in one file type per kind of request form (*laudo*):
 | AB | Bariatric surgery follow-up (*cirurgia bariátrica*), Jan/2008 to Apr/2017 plus Jan–Jul/2025; from 2014 a subset of ABO, see [AB and ABO](ab.md#ab-and-abo) | [`ab`](ab.md) | supported |
 | ABO | Post-bariatric surgery follow-up, Jan/2014 onward: the same APACs as AB, more states, new laudo in its own columns; use it instead of AB from 2014, see [AB and ABO](abo.md#ab-and-abo) | [`abo`](abo.md) | supported |
 | ACF | Creation of an arteriovenous fistula for haemodialysis (procedure `0418010030`), Aug/2014 onward; before that in AD. Grafts and catheters for dialysis are in AD, see [ACF, dialysis and AD](acf.md#acf-dialysis-and-ad) | [`acf`](acf.md) | supported |
-| AMP | Multiprofessional follow-up | | planned |
+| AMP | Multiprofessional follow-up of chronic kidney disease before dialysis (stages 4 and 5), Mar/2016 onward, 14 states; its laudo columns are named after ATD's but shifted by one field, see [laudo columns](amp.md#laudo-columns-amp_) | [`amp`](amp.md) | supported |
 
 Files are named `<CODE><UF><YY><MM>.dbc` (`AMSP2605.dbc`, `ATDSP2605.dbc`). Careful when
 listing the FTP by prefix: `AMPA2605.dbc` is **AM for Pará**, not AMP; AMP files have the
@@ -84,11 +84,12 @@ files carry no quantity column, so for quantities use `pa`.
   rows over a quarter counts most APACs up to three times.
 - **Patients:** `COUNT(DISTINCT AP_CNSPCN)`. The CNS is encoded by DATASUS (non-digit
   characters), consistently within the data, so it identifies a patient across months and
-  APAC types but cannot be linked to other systems. In AQ, AR, AD and ATD it is **empty or a
+  APAC types but cannot be linked to other systems. In AQ, AR, AD, ATD, AB, ABO, ACF and AMP it is **empty or a
   placeholder** (`{{{{{{{{{{{{{{{`) on a growing share of rows since 2024 (see
   [aq](aq.md#following-a-patient); in AR 95% of all rows by Aug/2026, see
   [ar](ar.md#following-a-patient); in AD 67% in Aug/2026, see
-  [ad](ad.md#patients); in ATD 96% in Aug/2026, see [atd](atd.md#patients); in AB 17% in 2025, see [ab](ab.md#patients); in ABO 58% in Aug/2026, see [abo](abo.md#patients)); check the
+  [ad](ad.md#patients); in ATD 96% in Aug/2026, see [atd](atd.md#patients); in AB 17% in 2025, see [ab](ab.md#patients); in ABO 58% in Aug/2026, see [abo](abo.md#patients);
+  in ACF 89% in Aug/2026, see [acf](acf.md#patients); in AMP 99.6% in Aug/2026, see [amp](amp.md#patients)); check the
   type's page before counting patients.
 
 ## Shared columns
@@ -160,7 +161,7 @@ files and can differ slightly between types.
 | `AP_UFNACIO` | 3 | Nationality code. | `010` = Brazilian. |
 | `AP_CEPPCN` | 8 | Postcode (CEP) of the patient. | |
 | `AP_UFDIF` | 2 | Patient's state differs from the facility's: `0` same, `1` different. | |
-| `AP_MNDIF` | 2 | Patient's municipality differs from the facility's: `0` same, `1` different. | **Always `1` in AM, AQ, AR, AD, ATD, AN, AB, ABO and ACF** even when they are equal; compare `AP_MUNPCN` with `AP_UFMUN` instead. |
+| `AP_MNDIF` | 2 | Patient's municipality differs from the facility's: `0` same, `1` different. | **Always `1` in AM, AQ, AR, AD, ATD, AN, AB, ABO, ACF and AMP** even when they are equal; compare `AP_MUNPCN` with `AP_UFMUN` instead. |
 
 ### Diagnosis
 
@@ -181,6 +182,9 @@ ACF, AMP and AB (AN, which ended in 2014, has all but `AP_NATJUR`, except in Dec
 but six under other names (`AP_TPPRE`, `AP_TPATEND`, `AP_DTOOCOR`, `AP_APACAN`, `CO_CIDPRIM`, `CO_CIDSEC`;
 see [abo](abo.md#shared-columns-with-other-names)), and its `AP_NATJUR` is in the Oct/2014 files and from Jul/2016,
 as in ACF (the 45 others under their usual names, see [acf](acf.md#known-quirks-and-layout-changes)).
+AMP has `AP_NATJUR` from Aug/2016, but always empty.
 A type's own columns can also change meaning without a change of header: AB's `AB_` columns hold
 the old bariatric laudo until Mar/2013 and the new one, cut at the old positions, from Apr/2013
-(see [ab](ab.md#two-laudos-in-one-layout)).
+(see [ab](ab.md#two-laudos-in-one-layout)). And a type's own columns can be misnamed: AMP's 19 `AMP_` columns
+carry the names of ATD's dialysis laudo, but each holds the next field of the multiprofessional laudo
+(see [amp](amp.md#laudo-columns-amp_)).

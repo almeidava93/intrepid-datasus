@@ -32,6 +32,22 @@ def test_group_and_select():
     assert len(c.select(parts, None, 202601, 202612)) == 3
 
 
+# The columns of the last legacy files (PAAC0701.dbc; 20 in 1994, 24 in 2001, 27 from 2003, 28 from 2004).
+PA_LEGACY_2007 = [
+    "PA_CONDIC", "PA_GESTAO", "PA_CODUNI", "PA_DATREF", "PA_CODPRO", "PA_DOCORIG", "PA_CODESP", "PA_TIPPRO",
+    "PA_TIPATE", "PA_FXETAR", "PA_QTDPRO", "PA_QTDAPR", "PA_INDICA", "PA_TIPPRE", "PA_DATPR", "PA_VALPRO",
+    "PA_VALAPR", "PA_UFMUN", "PA_MUNAT", "PA_NUMAPA", "PA_CODOCO", "PA_CIDPRI", "PA_CIDSEC", "PA_MORFOL",
+    "PA_CNPJ_CC", "PA_RCB", "PA_RCBDF", "PA_NH",
+]
+
+
+def test_pa_legacy_dictionary_covers_every_column():
+    from intrepid_datasus import dictionary
+    cols = set(PA_LEGACY_2007) | {"competencia", "uf", "_ARQUIVO_ORIGEM"}
+    assert cols <= set(dictionary.PA_LEGACY)
+    assert all(dictionary.PA_LEGACY[k].strip() for k in cols)
+
+
 def test_era_for():
     assert c.PA.era_for(200712).key == "pa_legacy"
     assert c.PA.era_for(200801).key == "pa"

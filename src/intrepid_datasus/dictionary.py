@@ -108,6 +108,15 @@ PA_LEGACY = {
     "PA_MUNAT": "Municipality of care.",
     "PA_NUMAPA": "APAC number.",
     "PA_MORFOL": "Tumour morphology (oncology).",
+    # Added in the late files (header checks of the AC January files, Nov/2026): PA_CNPJ_CC, PA_RCB and PA_RCBDF
+    # from Jan/2003 (27 columns), PA_NH from Jan/2004 (28). Not documented by DATASUS for this period.
+    "PA_CNPJ_CC": "CNPJ of the body paid for the production by transfer of credit (cessão de crédito), or empty. "
+                  "From 2003 (as PA_CNPJ_CC in pa).",
+    "PA_RCB": "Undocumented, from 2003. Looks like the month the production was received (YYYYMM): 200702 on every "
+              "row of AC, Jan/2007.",
+    "PA_RCBDF": "Undocumented, from 2003. '0' on every row of AC, Jan/2007.",
+    "PA_NH": "Undocumented, from 2004. A two-digit code 01-08 (01 on 61% of the rows of AC, Jan/2007), probably the "
+             "facility's hierarchy level (nível de hierarquia) of the old facility register.",
 }
 
 # ------------------------------------------------------------------- BI
@@ -222,7 +231,7 @@ APAC_COMMON = {
     "AP_CEPPCN": "Postcode (CEP) of the patient's address.",
     "AP_UFDIF": "Patient lives in another state than the facility (0 = same, 1 = different).",
     "AP_MNDIF": "Patient lives in another municipality than the facility (0 = same, 1 = different). "
-                "Unreliable (always 1 in AM, AQ, AR, AD, ATD, AN, AB, ABO and ACF): compare AP_MUNPCN with AP_UFMUN instead.",
+                "Unreliable (always 1 in AM, AQ, AR, AD, ATD, AN, AB, ABO, ACF and AMP): compare AP_MUNPCN with AP_UFMUN instead.",
     "AP_DTINIC": "Start of the APAC's validity period (YYYYMMDD).",
     "AP_DTFIM": "End of the APAC's validity period (YYYYMMDD); up to 3 months after AP_DTINIC.",
     "AP_TPATEN": "APAC type of care (tipo de atendimento / laudo); fixed per file type.",
@@ -1064,4 +1073,90 @@ ACF = apac("ACF", {
                   "no labels: 1 (28% of rows), 2 (13%), 3 (45%), 4 (13%). Always filled. Rows with 1 mostly have no "
                   "pulse, visible vein or previous fistula; 3 has them on 76-87%. The layout's 'pulse without "
                   "thrill' flag (APA_PULFRE) has no column in the file.",
+})
+
+
+# ------------------------------------------------------------------- AMP
+# APAC de Acompanhamento Multiprofissional em Doença Renal Crônica: the outpatient multiprofessional follow-up of
+# chronic kidney disease BEFORE dialysis, stage 4 (procedure 0301130051) and stage 5 pre-dialysis (0301130060), files
+# AMP<UF><YY><MM>.dbc, Mar/2016 onward (RO only until Sep/2017; 14 states by Aug/2026). One DBF layout, 64 columns:
+# the 45 shared AP_ columns under their usual names and 19 AMP_ columns NAMED AFTER ATD's dialysis laudo (CARACT,
+# DTINI where ATD has DTPDR, DTCLI, ACEVAS, ..., SEPERI); plus AP_NATJUR last (65) from Aug/2016, always empty. Every
+# one of the 903 headers was probed. The AMP_ columns do NOT hold what their names say: they hold the
+# multiprofessional laudo (interface layout part 19), each column taking the laudo field AFTER the one it is named
+# for: AMP_DTINI holds the FAV and catheter referrals, height and weight; AMP_SITINI the vaccination status; AMP_TRU
+# phosphorus; AMP_INTERC the ACE inhibitor flag; ... The laudo's start date is lost, and haemoglobin keeps only its
+# first character (AMP_KTVSEM). Checked on all 204,061 rows: AMP_DTCLI = 2nd character of AMP_DTINI, AMP_ACEVAS =
+# 3rd, AMP_MAISNE = 6th, on every row.
+# Sources: DATASUS "Layout da interface texto do APAC e do SIA - layout interno" (Apr/2014), part 19 "Parte variável
+# Procedimentos do laudo de Acompanhamento Multiprofissional em D.R.C." (field positions and codes); the Informe
+# Técnico SIASUS (2019) has no AMP section and TAB_SIA.zip (Oct/2026) no AMP .def. Values: docs/tables/amp.md.
+AMP_QUANTITY_COLS = APAC_QUANTITY_COLS
+AMP_VALUE_COLS = APAC_VALUE_COLS
+
+_AMP_SNI = " (S = yes, N = no, I = unknown; always filled)."
+_AMP_LAB = ("Text as typed, 1-4 characters ('04,1', '4', '0000', '000,'): read ',' as the decimal point; zeros mean "
+            "not informed.")
+
+AMP = apac("AMP", {
+    "AP_PRIPAL": "Multiprofessional follow-up of chronic kidney disease before dialysis: 0301130051 = stage 4 "
+                 "pre-dialysis (59% of rows), 0301130060 = stage 5 pre-dialysis (41%). Joins procedimentos.",
+    "AP_VL_AP": "Approved value, R$ (nominal) = PA_VALAPR of the APAC's pa rows, for this month: 0.00 until Oct/2018, "
+                "61.00 from Nov/2018, 122.00 from Mar/2026 (late bills keep 61.00); 0.00 on 12% of rows.",
+    "AP_TPAPAC": "1 = initial, 2 = continuation, 3 = single. From 2019, stage 4 (0301130051) APACs are single (one row "
+                 "each, typically one to three months apart) and stage 5 (0301130060) APACs run for three months "
+                 "(1, 2, 2); the other way round until 2018.",
+    "AP_TPATEN": "APAC type of care. Always 11 in AMP.",
+    "AP_TPUPS": "Facility type, CNES codes: 36 = specialised clinic (60%), 05 = general hospital (22%), 04 = polyclinic "
+                "(10%), 39 = diagnostic support unit (5%), 07 = specialised hospital (3%).",
+    "AP_TIPPRE": "Provider type. Always 00 in AMP (as PA_TIPPRE).",
+    "AP_CIDPRI": "Main diagnosis. Always '0000' in AMP (also in pa); a kidney disease code, if any, is in AP_CIDCAS.",
+    "AP_CIDSEC": "Secondary diagnosis. Always '0000' in AMP.",
+    "AP_CIDCAS": "Associated cause, ICD-10 (no dot), or '0000' (92% of rows); otherwise mostly N180 (end-stage kidney "
+                 "disease, 8%), N189, N188, N083, N139. Joins cid10.",
+    "AP_MOTSAI": "Reason for exit or continuation: 15 = discharge with return for follow-up (40%, the single APACs), "
+                 "21 = continues, nature of the disease (35%), 18, 12, 51 (closed administratively, 7%), 26, 11; "
+                 "144 deaths.",
+    "AP_MNDIF": "Patient lives in another municipality than the facility. Always 1 in AMP (wrong, as in the other "
+                "APAC types): compare AP_MUNPCN with AP_UFMUN instead (different on 41% of rows).",
+    "AP_CNSPCN": "Patient's CNS, ENCODED by DATASUS (the same encoding as ATD, ACF and AD, so it links the follow-up to "
+                 "the patient's later dialysis and fistula). Filled on every row until Mar/2024; then NULL or "
+                 "'{{{{{{{{{{{{{{{' on about 5% of rows a month (Nov/2024-Feb/2026), 19% in Apr/2026, 73% in May/2026 "
+                 "and 99.6% in Aug/2026.",
+    "AP_NATJUR": "Facility legal nature. The column is in the files from Aug/2016 (the last one), but ALWAYS EMPTY "
+                 "(NULL) in AMP; pa's PA_NAT_JUR has it.",
+    "AMP_CARACT": "Characteristic of the treatment: 1 = new case, 2 = continuing treatment, 3 = patient in transit, "
+                  "4 = change of facility. 2 on 99.9% of rows, so not informative.",
+    "AMP_DTINI": "NOT a date (named after ATD's start-of-dialysis date; the laudo's start-of-treatment date is lost). "
+                 "Holds 8 characters of the laudo: position 1 = referred for an arteriovenous fistula (FAV; S = yes, "
+                 "N = no), 2 = referred for a catheter implant (S/N), 3-5 = height in cm, 6-8 = weight in kg, as typed "
+                 "('SN170078', 'NN15053', 'NN000000'; trailing spaces trimmed). Referred for a fistula on 9% of "
+                 "stage 4 and 27% of stage 5 rows; height 100-220 cm on 67% of rows (median 165), weight 25-250 kg "
+                 "on 60% (median 70).",
+    "AMP_DTCLI": "Referred for a catheter implant (S = yes, N = no): the laudo's ENCCAT. Always equals the 2nd "
+                 "character of AMP_DTINI. S on 4% of rows.",
+    "AMP_ACEVAS": "Not the vascular access: the first digit of the patient's height (always the 3rd character of "
+                  "AMP_DTINI). '1', or '0' when not informed.",
+    "AMP_MAISNE": "Not the 'followed by a nephrologist' flag: the first digit of the patient's weight (always the 6th "
+                  "character of AMP_DTINI).",
+    "AMP_SITINI": "Vaccination status (situação vacinal): R = up to date (regular), N = not up to date. R on 42% "
+                  "of rows.",
+    "AMP_SITTRA": "Anti-HBs, the response to the hepatitis B vaccine: R = reactive, N = not reactive; NULL on 16%. The "
+                  "layout asks for it only when vaccination is up to date (AMP_SITINI = R), but it is filled for N too.",
+    "AMP_SEAPTO": "Vaccinated against influenza" + _AMP_SNI,
+    "AMP_HB": "Vaccinated with the adult dT vaccine (diphtheria and tetanus)" + _AMP_SNI,
+    "AMP_FOSFOR": "Vaccinated with the pneumococcal vaccine" + _AMP_SNI,
+    "AMP_KTVSEM": "Not Kt/V (there is no dialysis): the FIRST CHARACTER of the haemoglobin value only ('1' for 10-19 "
+                  "g/dL, '9', '8', ...; '0' when not informed or typed with a leading zero). The rest of the "
+                  "haemoglobin is lost.",
+    "AMP_TRU": "Not the urea reduction ratio: serum phosphorus, mg/dL (median 4.0). " + _AMP_LAB,
+    "AMP_ALBUMI": "Serum albumin, g/dL (median 4.0); optional, NULL on 17%. " + _AMP_LAB,
+    "AMP_PTH": "Parathyroid hormone (PTH), pg/mL (median about 130); optional, NULL on 17%. " + _AMP_LAB,
+    "AMP_HIV": "Anti-HIV antibodies: P = positive (0.4%), N = negative; optional, may be NULL.",
+    "AMP_HCV": "Anti-HCV antibodies (hepatitis C): P = positive (0.3%), N = negative; optional, may be NULL.",
+    "AMP_HBSAG": "HBsAg (hepatitis B surface antigen): P = positive (0.2%), N = negative; optional, may be NULL.",
+    "AMP_INTERC": "Not a hospital admission: uses an ACE inhibitor (IECA) medicine" + _AMP_SNI + " S on 8% of rows from "
+                  "2023, I on 24%.",
+    "AMP_SEPERI": "Not peritonitis: uses an angiotensin receptor blocker (ARB, BRA) medicine" + _AMP_SNI + " S on 17% "
+                  "of rows from 2023, I on 24%.",
 })

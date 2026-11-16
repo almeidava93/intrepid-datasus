@@ -59,7 +59,7 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
    columns change, the file type needs one era per layout. For a small type, probe every
    month of one state, not just January: **Dec/2011** files of every type then published
    (AM, AQ, AR, AD, AN, BI) carry `AP_NATJUR` / `NAT_JUR` for that one month (empty in AN),
-   which a January-only probe misses; **Oct/2014** files of SAD, ABO and ACF have it too. Add it to the field-list test of your type. A column only *added* over time
+   which a January-only probe misses; **Oct/2014** files of SAD, ABO and ACF have it too (AMP, which starts in Mar/2016, has it from Aug/2016, always empty). Add it to the field-list test of your type. A column only *added* over time
    (BI's `NAT_JUR`) needs no new era; the views read with `union_by_name` and older months
    show `NULL`. The same trick gives row counts, e.g. to compare a whole file with its parts.
    The header does not show changes in *meaning*: also look at the main procedure codes and
@@ -91,7 +91,12 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
    the file layout: `APAC_Confeccao_de_Fistula.DEF` reads a column (`ACF_PULFRE`) the files don't have,
    and decodes ACF's `S`/`N` flags with a `1`/`0` table. A type can also take over procedures that
    another type held before: fistula creation (`0418010030`) is in AD until Jul/2014 and in ACF
-   after, so look for your type's procedure codes in its siblings' earlier years.
+   after, so look for your type's procedure codes in its siblings' earlier years. And don't trust a
+   column's *name*: AMP's 19 laudo columns are named after ATD's dialysis laudo (`AMP_DTINI`,
+   `AMP_KTVSEM`, `AMP_SEPERI`), but each holds the next field of the multiprofessional laudo
+   (`AMP_DTINI` = fistula and catheter referral, height and weight; `AMP_SEPERI` = ARB use). Compare
+   the values of each column with the codes of *every* field of the laudo, and look for columns that
+   repeat a character of another (`AMP_DTCLI` = the 2nd character of `AMP_DTINI` on every row).
 
     ```python
     import struct
@@ -198,7 +203,9 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       `tests/test_ab.py` is the one for an APAC type with a gap in its files and an extra column
       in Dec/2011 and again from Jul/2016, and `tests/test_abo.py` the one for an APAC type that
       renames shared columns (it checks `without=`); `tests/test_acf.py` is the one for an APAC type
-      with one row per APAC (single APACs) whose laudo columns are text codes and diameters.
+      with one row per APAC (single APACs) whose laudo columns are text codes and diameters, and
+      `tests/test_amp.py` the one for a type whose laudo columns are misnamed (it checks the
+      documented unpacking and that the AM files of PA, PE, PI, PB and PR stay AM).
 5. **Docs:**
     - a page `docs/tables/<code>.md` (copy the structure of `bi.md`, or `am.md` for an APAC
       type: link to [APAC file types](tables/apac.md) for the `AP_` columns and only list
@@ -223,7 +230,8 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       column picks its rows out, and some APACs, such as glaucoma follow-up, are not in AD
       either; ATD: exact, and ATD = `P` rows with `PA_PROC_ID LIKE '0305%'`, from Aug/2014;
       AN: exact, the same selection until May/2014, checked in 2008, 2011 and 2014; ACF: exact, `P`
-      rows with `PA_PROC_ID = '0418010030'`, but the other `041801` access procedures are AD).
+      rows with `PA_PROC_ID = '0418010030'`, but the other `041801` access procedures are AD;
+      AMP: exact, `P` rows with `PA_PROC_ID` `0301130051`/`0301130060`, their `S` rows are R$ 0 lab tests).
       RAAS types have no authorisation number: their rows are `PA_DOCORIG = 'B'` (PS) or
       `'A'` (SAD); compare `COUNT(*)` and `SUM(PA_QTDAPR)` grouped by facility
       (`CNES_EXEC = PA_CODUNI`), care month (`DT_ATEND = PA_CMP`) and `PA_PROC_ID`
@@ -237,7 +245,7 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       before writing anything about patients: from Nov/2025 it is missing on most AR rows
       (95% in Aug/2026), on 2–22% of AQ rows (SC, 2026), on 67% of AD rows in Aug/2026
       (rising since Apr/2024), on 96% of ATD rows in Aug/2026 (2% in 2024, 15% in Mar/2026,
-      then a jump from May/2026), on 89% of ACF rows in Aug/2026, on none in AM or AN (2008–2014);
+      then a jump from May/2026), on 89% of ACF rows and 99.6% of AMP rows in Aug/2026, on none in AM or AN (2008–2014);
     - don't trust a shared column to behave as in another type: `AP_CIDPRI` is always
       `0000` in ATD but filled in AN, and `AP_TPATEN` is a different fixed code in each type.
       SAD's `TPUPS` holds the provider type (`pa`'s `PA_TIPPRE`), not the facility type it holds
@@ -261,7 +269,7 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
     rows), 7 s and 0.4 GB. For a type with many tiny files the Parquet ratio is high,
     because each file has about 20 KB of overhead (AR: 0.81 over its 5,491 files; SAD: 0.89,
     files of ~49 KB; AB: **1.2**, files of ~25 KB, so Parquet is larger than the `.dbc`; ABO: 1.38,
-    files of ~24 KB; ACF: **2.3**, files of ~8.5 KB), and
+    files of ~24 KB; ACF: **2.3**, files of ~8.5 KB; AMP: 1.85, files of ~14 KB), and
     small files can take up to 30 s each on the FTP (AR, every month: about 35 min). To fetch
     a whole history faster, run two or three fetches of different year ranges into separate
     stores (`-d`) at once, then move the `data/<key>/competencia=*` folders into one store and
