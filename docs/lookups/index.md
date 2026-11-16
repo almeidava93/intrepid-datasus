@@ -1,7 +1,19 @@
-# Lookup tables
+# Reference data
 
-Friendly tables that turn the codes in `pa` into names. `ufs` is always there; the others
-are built from SIGTAP and appear after `uv run datasus sigtap fetch`.
+The data files hold codes; these lookup tables turn them into names. They are shared by
+every database: the same `cid10` table names diagnoses in SIA and, when they are added,
+in hospital admissions and death certificates.
+
+| Table | Turns into a name | Available |
+|---|---|---|
+| [`ufs`](#ufs) | state codes (`SP`) and IBGE state codes (`35`), with region | always (built in) |
+| [`procedimentos`](#procedimentos) | SIGTAP procedure codes (`0301010064`) | after `uv run datasus sigtap fetch` |
+| [`cid10`](#cid10) | ICD-10 codes (`J189`, `C50`) | after `uv run datasus sigtap fetch` |
+| [`ocupacoes`](#ocupacoes) | CBO occupation codes (`225125`) | after `uv run datasus sigtap fetch` |
+| [`sigtap_*`](sigtap.md) | every other SIGTAP table: funding, services, accreditations, rules | after `uv run datasus sigtap fetch` |
+
+Use a `LEFT JOIN` when you don't want rows whose code is missing from the lookup to
+disappear (retired codes, `'0000'` for "not informed").
 
 ## ufs
 
@@ -9,8 +21,8 @@ Built into the package, no download needed. 27 rows.
 
 | Column | Type | Meaning |
 |---|---|---|
-| `uf` | text | State abbreviation (`SP`). Joins the `uf` partition of `pa`, `pa_legacy`, `bi`, `am`. |
-| `ibge` | text | 2-digit IBGE state code (`35`). Matches the first two digits of `PA_UFMUN`, `PA_MUNPCN`, `PA_GESTAO` (and `UFMUN`, `MUNPAC`, `GESTAO` in `bi`; `AP_UFMUN`, `AP_MUNPCN`, `AP_GESTAO` in `am`). |
+| `uf` | text | State abbreviation (`SP`). Joins the `uf` partition column of every table. |
+| `ibge` | text | 2-digit IBGE state code (`35`). Matches the first two digits of `PA_UFMUN`, `PA_MUNPCN`, `PA_GESTAO` in `pa`, and of every other 6-digit IBGE municipality code (`MUNPAC` in `bi`, `AP_MUNPCN` in the APAC tables, ...). |
 | `nome` | text | State name (`São Paulo`). |
 | `regiao` | text | Region: `Norte`, `Nordeste`, `Sudeste`, `Sul`, `Centro-Oeste`. |
 

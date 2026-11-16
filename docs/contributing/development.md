@@ -4,6 +4,8 @@
 uv run pytest
 ```
 
+Docs: [Adding a database](adding-a-database.md) explains how the documentation is laid out.
+
 Source: `src/intrepid_datasus/` — `catalog.py` (registry of SIA file types, FTP listing, states, periods), `convert.py`
 (.dbc → Parquet), `store.py` (local layout and manifest), `fetch.py`, `query.py` (DuckDB views),
 `dictionary.py` (column descriptions), `cli.py`.
@@ -159,7 +161,7 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
    `dictionary.raas("SAD", {...own columns...})`, which adds `PARTITION` and `RAAS_COMMON`
    (including `NAT_JUR`; drop it with `without=` if the type never has it). Use
    `RAAS_QUANTITY_COLS` (`PA_QTDPRO`, `PA_QTDAPR`) and `RAAS_VALUE_COLS` (empty: RAAS files
-   have no value column). What a RAAS is: `docs/tables/raas.md`.
+   have no value column). What a RAAS is: `docs/databases/sia/raas.md`.
 3. **Registry** (`catalog.py`): define the file type and add it to `REGISTRY`, keeping the
    order of issue #3 (it is the order of `-T all`, `--help` and the status tables):
 
@@ -207,17 +209,20 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       `tests/test_amp.py` the one for a type whose laudo columns are misnamed (it checks the
       documented unpacking and that the AM files of PA, PE, PI, PB and PR stay AM).
 5. **Docs:**
-    - a page `docs/tables/<code>.md` (copy the structure of `bi.md`, or `am.md` for an APAC
-      type: link to [APAC file types](tables/apac.md) for the `AP_` columns and only list
+    - a page `docs/databases/sia/<code>.md` (copy the structure of `bi.md`, or `am.md` for an APAC
+      type: link to [APAC file types](../databases/sia/apac.md) for the `AP_` columns and only list
       what they hold in your type, then describe your own columns; mark the type as
       supported in the table at the top of `apac.md`): what the table is,
       what one row is, period covered, download size, every column with meaning and codes,
       joins to `procedimentos`, `cid10`, `ocupacoes`, `ufs`, overlap with PA
-      (double-counting risk), known quirks and layout changes, and 2–3 example queries;
-    - add it to the `Tables` section of `mkdocs.yml` `nav`;
-    - in `docs/tables/index.md`, add a row to the *SIA file types* table and to the top
-      table, and extend the join diagram if the table joins the lookups;
-    - add the views to the table list in `docs/querying.md` and `README.md`;
+      (double-counting risk), known quirks and layout changes, and 2–3 example queries under
+      an `## Examples` heading (follow [Adding a database](adding-a-database.md#table-page-template));
+    - add it to the SIA section of `mkdocs.yml` `nav`;
+    - in `docs/databases/sia/index.md`, add a row to *Which table do I need?* and *Tables at
+      a glance*; in `docs/databases/sia/joins.md`, add a row to the double-counting table and
+      extend the join map;
+    - link the page's examples from *More recipes on the table pages* in
+      `docs/databases/sia/examples.md`;
     - for overlap with PA, fetch the same state-month of PA and compare row counts and
       `SUM`s against `pa WHERE PA_DOCORIG = ...` (BI equals `PA_DOCORIG = 'I'` exactly).
       For APAC types, join on `AP_AUTORIZ = PA_AUTORIZ` **and** `AP_CMP = PA_CMP` (same
@@ -235,7 +240,7 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       RAAS types have no authorisation number: their rows are `PA_DOCORIG = 'B'` (PS) or
       `'A'` (SAD); compare `COUNT(*)` and `SUM(PA_QTDAPR)` grouped by facility
       (`CNES_EXEC = PA_CODUNI`), care month (`DT_ATEND = PA_CMP`) and `PA_PROC_ID`
-      (PS: see `docs/tables/ps.md`).
+      (PS: see `docs/databases/sia/ps.md`).
       For a type that replaced another (ATD after AN), compare the months around the switch
       with `pa` too: Jun–Jul/2014 dialysis is in `pa` but mostly in neither AN nor ATD.
       Check whether some other column of `pa` (`PA_TPFIN`, the procedure group) picks out

@@ -1,160 +1,56 @@
 # intrepid-datasus
 
-A command-line tool to **download and query SIA/SUS – Produção Ambulatorial** (outpatient
-care paid by Brazil's public health system, SUS), straight from the DATASUS FTP.
+**Download Brazil's public health data from DATASUS and query it with SQL on your own
+machine.**
 
-- Every state, every month from **Jul/1994** to the latest release.
-- Besides PA, **every other SIA/SUS file type** DATASUS publishes (`-T all`): BPA-I (BI), the ten APAC
-  types (AM, AQ, AR, AD, ATD, AN, AB, ABO, ACF, AMP: medicines, oncology, dialysis, ...) and the two RAAS
-  types (PS, SAD), each in its own tables; see [Tables](docs/tables/index.md).
-- Fetch **all or selected states** (or whole regions) over **any range of months**.
-- Data is stored locally as Parquet and queried with **SQL (DuckDB)** — fast, and a
-  full month (~70M rows) needs only a few GB of RAM.
-- Re-running a fetch only downloads what is new or was **revised by DATASUS**.
+DATASUS publishes the records of Brazil's public health system (SUS) as thousands of
+compressed files on an FTP server, one per state and month. This tool downloads the ones
+you ask for, keeps them up to date, converts them to Parquet and gives you documented SQL
+tables (DuckDB) with name lookups.
 
-> Why not the Kaggle copy ([rafatrindade/sia-producao-ambulatorial](https://www.kaggle.com/datasets/rafatrindade/sia-producao-ambulatorial))?
-> Its pipeline skips files DATASUS splits into parts (`PASP2605a.dbc`, `…b`, …), so it is
-> missing **São Paulo from 2013 and Rio de Janeiro / Minas Gerais from 2021** — about half of
-> all procedures in recent months. This tool reads the FTP directly and handles split files.
+📖 **Documentation: <https://almeidava93.github.io/intrepid-datasus/>**
 
-## Setup
+| Database | What it covers | Status |
+|---|---|---|
+| **SIA/SUS** | Outpatient care paid by SUS: consultations, exams, medicines, chemotherapy, radiotherapy, dialysis, mental health (CAPS), home care, ... All 14 file types, every state, every month since Jul/1994. | Available |
+| SIH, SIM, SINASC, CNES, SINAN | Hospital admissions, deaths, births, facilities, notifiable diseases | Planned |
+
+## Quick start
 
 Requires [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync
-uv run datasus --help
-```
-
-## Fetching data
-
-```bash
-# what's on the FTP, and how big (nothing is downloaded)
-uv run datasus available -s SP -f 2025
-
-# one state, one year
-uv run datasus fetch -s SP -f 2025
-
-# several states, a range of months
-uv run datasus fetch -s SP,RJ,MG -f 202401 -t 202406
-
-# a region, or the whole country
-uv run datasus fetch -s Nordeste -f 2025
-uv run datasus fetch -s all -f 202605
-
-# preview the plan first
-uv run datasus fetch -s all -f 2024 --dry-run
-
-# choose the SIA file type(s): pa is the default
-uv run datasus fetch -T pa -s AC -f 202605
-uv run datasus fetch -T all -s AC -f 202605
-```
-
-- `--table/-T`: which SIA file types (tables) to work on: a code like `pa`, several like
-  `pa,bi`, or `all`. Default: `pa`, so commands without it behave as they always have.
-  `available`, `fetch`, `status`, `schema` and `remove` all take it. Each file type is one
-  table family (see [Tables](docs/tables/index.md)); the registered ones are listed in
-  `datasus fetch --help`. (`-t` is `--to`; the table flag is a capital `-T`.)
-- `--states/-s`: `all` (default), codes like `SP,RJ`, or a region: `Norte`, `Nordeste`,
-  `Sudeste`, `Sul`, `Centro-Oeste`.
-- `--from/-f`, `--to/-t`: `YYYY` or `YYYYMM`. `--to` defaults to the end of `--from`.
-- `--workers/-w` (default 3), `--force`, `--keep-dbc`, `--yes/-y`.
-
-Re-running the same command is safe and cheap: state-months that match the FTP are skipped;
-any whose files changed (DATASUS silently revises recent months, and sometimes re-splits
-them into parts) are rebuilt. An interrupted run resumes where it stopped.
-
-**Sizes** (May/2026, all 27 states): ~2.7 GB to download, ~1 GB as Parquet, ~71M rows.
-A year is roughly 11–13 GB of Parquet. While converting, each worker needs a few GB of
-temporary disk.
-
-## Querying
-
-```bash
-uv run datasus query "SELECT uf, SUM(PA_QTDAPR) AS procedimentos, SUM(PA_VALAPR) AS valor
-                      FROM pa WHERE competencia BETWEEN 202501 AND 202512
-                      GROUP BY uf ORDER BY procedimentos DESC"
-
-uv run datasus query -F my_query.sql -o result.csv     # also .parquet / .json
-uv run datasus query --format csv "SELECT ..." > out.csv
-uv run datasus shell                                    # interactive SQL prompt
-uv run datasus schema                                   # columns + descriptions (pa)
-uv run datasus schema --legacy                          # columns of pa_legacy
-uv run datasus status                                   # what's stored locally (pa)
-uv run datasus status -T all                            # ... for every table
-uv run datasus remove -s RR -f 2026                     # delete local data (pa)
-```
-
-Tables available in SQL:
-
-| Table | Contents |
-|---|---|
-| `pa` | 2008 onward (SIGTAP procedure codes). Quantities as `BIGINT`, values as `DOUBLE`. |
-| `pa_legacy` | 1994–2007 (old layout and procedure table — different columns). |
-| `pa_raw`, `pa_legacy_raw` | Same, every column as text, exactly as DATASUS publishes it. |
-| `bi`, `bi_raw` | BPA Individualizado (`-T bi`, 2008 onward): one row per patient appointment, with age, sex, residence and diagnosis. Same rows as `pa WHERE PA_DOCORIG = 'I'` — don't add the two. |
-| `am`, `am_raw` | APAC Medicamentos (`-T am`, 2008 onward): one row per APAC for a high-cost medicine per month, with patient, diagnosis, validity and continuation. Same APACs as `pa WHERE PA_DOCORIG = 'P' AND PA_TPFIN = '02'` — don't add the two. |
-| `aq`, `aq_raw` | APAC Quimioterapia (`-T aq`, 2008 onward): one row per chemotherapy/hormone therapy APAC per month, with cancer ICD-10, stage, lymph nodes, treatment purpose, scheme and dates. Same APACs as `pa WHERE PA_DOCORIG = 'P'` with procedures `030402`–`030408` — don't add the two. |
-| `ar`, `ar_raw` | APAC Radioterapia (`-T ar`, 2008 onward): one row per radiotherapy APAC per month, with cancer ICD-10, stage, treatment purpose, treated areas, number of fields/insertions and dates. Same APACs as `pa WHERE PA_DOCORIG = 'P'` with procedures `030401` — don't add the two. |
-| `ad`, `ad_raw` | APAC Laudos Diversos (`-T ad`, 2008 onward): one row per APAC per month for the procedures with no laudo of their own: cataract and other eye surgery, eye injections, cardiac catheterisation, hearing diagnosis and aids, transplant follow-up, PET-CT, wheelchairs, and (until 2012) CAPS mental health care. Same APACs as some of the `pa WHERE PA_DOCORIG = 'P'` rows — don't add the two. |
-| `atd`, `atd_raw` | APAC Tratamento Dialítico (`-T atd`, Aug/2014 onward; AN before): one row per dialysis APAC per month — in practice one patient on chronic dialysis per month — with dialysis type, vascular access, transplant status, lab values (haemoglobin, phosphorus, albumin, PTH, Kt/V, URR) and serology. Same APACs as `pa WHERE PA_DOCORIG = 'P' AND PA_PROC_ID LIKE '0305%'` — don't add the two. |
-| `an`, `an_raw` | APAC Nefrologia (`-T an`, Jan/2008 to Jul/2014; ATD after): the dialysis APACs before ATD, one row per APAC per month — about one patient on chronic dialysis per month — with first-dialysis date, height, weight, diuresis, glucose, transplant list, URR, albumin, haemoglobin and serology. Same APACs as `pa WHERE PA_DOCORIG = 'P' AND PA_PROC_ID LIKE '0305%'` until May/2014 — don't add the two. |
-| `ps`, `ps_raw` | RAAS Psicossocial (`-T ps`, Nov/2012 onward): CAPS psychosocial care, one row per action line of a patient's monthly RAAS (`QTDPCN = '1'` marks one row per patient-month), with diagnosis, drugs used, street situation, origin, days in care. Same rows as `pa WHERE PA_DOCORIG = 'B'` (R$ 0) — don't add the two. |
-| `sad`, `sad_raw` | RAAS Atenção Domiciliar (`-T sad`, Apr/2012 to Oct/2018, in practice to Jun/2016; later home care is in SISAB, not on the FTP): Melhor em Casa home-care teams, one row per action line of a patient's monthly RAAS (`QTDPCN = '1'` marks one row per patient-month), with diagnosis, team, origin, destination, days in care. Same rows as `pa WHERE PA_DOCORIG = 'A'` (R$ 0) — don't add the two. |
-| `ab`, `ab_raw` | APAC Cirurgia Bariátrica (`-T ab`, Jan/2008 to Apr/2017, plus Jan–Jul/2025): despite the name, the monthly **follow-up after** bariatric surgery (procedure `0301120056`; the surgery itself is an SIH admission), one row per APAC per month, with BMI, surgery date, type and AIH number, months of follow-up and, from Apr/2013, weight lost, comorbidities and habits packed into the old columns. From 2014 every row is also in ABO, which has more states. Same APACs as `pa WHERE PA_DOCORIG = 'P' AND PA_PROC_ID = '0301120056'` — don't add the two. |
-| `abo`, `abo_raw` | APAC Acompanhamento Pós-Cirurgia Bariátrica (`-T abo`, Jan/2014 onward): the monthly **follow-up after** bariatric surgery (procedure `0301120056`), one row per APAC per month, with the surgery (SIGTAP code, date, AIH number), plastic surgery after weight loss, comorbidities and habits; no BMI. The same APACs as `ab` from 2014, in more states: use `abo` from 2014 and `ab` before. Same APACs as `pa WHERE PA_DOCORIG = 'P' AND PA_PROC_ID = '0301120056'` — don't add the two. |
-| `acf`, `acf_raw` | APAC Confecção de Fístula (`-T acf`, Aug/2014 onward): one row per **surgical creation of an arteriovenous fistula** for haemodialysis (procedure `0418010030`, single APACs), with the laudo's flags (previous catheter, previous fistula, pulse, visible vein, thrill) and vessel diameters. The same encoded patient ID as `atd` links it to the patient's dialysis; grafts and long-term catheters are in `ad`, and fistulas before Aug/2014 too. Same APACs as `pa WHERE PA_DOCORIG = 'P' AND PA_PROC_ID = '0418010030'` — don't add the two. |
-| `amp`, `amp_raw` | APAC Acompanhamento Multiprofissional (`-T amp`, Mar/2016 onward, 14 states): one row per patient-month of the **multiprofessional follow-up of chronic kidney disease before dialysis** (stage 4 `0301130051`, stage 5 `0301130060`). The laudo columns are named after ATD's but each holds the next field (`AMP_DTINI` = fistula and catheter referral, height, weight; see the table page). The same encoded patient ID as `atd` and `acf` follows the patient into dialysis and fistula surgery. Same APACs as `pa WHERE PA_DOCORIG = 'P' AND PA_PROC_ID IN ('0301130051', '0301130060')` — don't add the two. |
-| `ufs` | State code, IBGE code, name and region — join on `uf`. |
-| `procedimentos` | SIGTAP procedure names, group, complexity, funding, price — join `PA_PROC_ID = codigo`. |
-| `cid10`, `ocupacoes` | ICD-10 and CBO (occupation) names — join on `PA_CIDPRI` / `PA_CBOCOD`. |
-| `sigtap_*` | Every SIGTAP table (e.g. `sigtap_rl_procedimento_cid`); `…_all` keeps every version. |
-
-## Procedure names (SIGTAP)
-
-The PA files only have codes. SIGTAP, the SUS procedure table, has the names, groups,
-prices and rules. DATASUS publishes one version per month since Jan/2008 (~2 MB each).
-
-```bash
-uv run datasus sigtap fetch                       # latest version
-uv run datasus sigtap fetch --from 2008 --yearly  # one per year: names for retired codes too
-uv run datasus sigtap search teleconsulta         # find codes by name (accents ignored) or code prefix
-uv run datasus sigtap available
+uv run datasus available -s AC -f 2025      # what's on the FTP (nothing is downloaded)
+uv run datasus fetch -s AC -f 202505        # one state, one month of outpatient production
+uv run datasus sigtap fetch                 # procedure, diagnosis and occupation names
+uv run datasus shell                        # interactive SQL
 ```
 
 ```sql
-SELECT p.nome, SUM(PA_QTDAPR) qtd
+-- The 10 most frequent procedures
+SELECT p.nome, SUM(PA_QTDAPR) AS procedimentos
 FROM pa JOIN procedimentos p ON p.codigo = pa.PA_PROC_ID
-WHERE competencia = 202605 GROUP BY 1 ORDER BY 2 DESC LIMIT 20;
+WHERE competencia = 202505
+GROUP BY 1 ORDER BY 2 DESC LIMIT 10;
 ```
 
-For each code the views keep the most recent description from the versions you fetched,
-plus `primeira_versao` / `ultima_versao` (first/last version it appears in) and `ativo`.
-With `--yearly`, those dates are only precise to the year. Procedure codes in `pa_legacy`
-(1994–2007) use the old SIA table and are not in SIGTAP.
+Then:
 
-Every row also has `competencia` (YYYYMM, the file's month) and `uf` (state). Filtering on
-them is fast: only the matching files are read.
+- [Getting started](docs/getting-started.md): the ten-minute tutorial.
+- [Key concepts](docs/concepts.md): competência, UF, CNES, SIGTAP, CID-10, and how data is stored.
+- [SIA overview](docs/databases/sia/index.md): which table answers which question.
+- [SQL cookbook](docs/databases/sia/examples.md): spending, top procedures, patient travel,
+  cancer screening, telehealth, CAPS, dialysis, ...
+- [Pitfalls](docs/databases/sia/data-notes.md): read before you count.
+- [Fetching](docs/guide/fetching.md) and [Querying](docs/guide/querying.md) (CLI, Python, R).
 
-You can also use the Parquet files from Python, R or any other tool:
-`data/pa/competencia=YYYYMM/uf=XX/*.parquet` (Hive-style partitions).
+## Why not the Kaggle copy?
 
-## Things to know about the data
-
-- **Sum `PA_QTDAPR`, don't count rows.** One row can stand for thousands of procedures.
-- **Half of all procedures have no patient data.** Consolidated reports (`PA_DOCORIG = 'C'`)
-  have no age, sex, diagnosis or residence (`PA_SEXO = '0'`, `PA_MUNPCN = '999999'`).
-- `PA_UFMUN` is where the **facility** is; `PA_MUNPCN` is where the **patient lives**.
-- `competencia` is the processing month (`PA_MVM`); `PA_CMP` is when care happened and
-  includes late reports from earlier months.
-- Values are nominal R$ — adjust for inflation (e.g. IPCA) before comparing years.
-- "Not informed" codes: `PA_CIDPRI = '0000'`, `PA_IDADE = '999'`, `PA_RACACOR = '00'`/`'99'`.
-- Official layout and code tables: [DATASUS – Transferência de arquivos](https://datasus.saude.gov.br/transferencia-de-arquivos/) (SIA → Documentação).
-
-## Options
-
-- `--data-dir/-d` or the `DATASUS_DATA_DIR` environment variable: where data lives (default `./data`).
-- `--memory-limit 8GB` on `query`/`shell` to cap DuckDB's memory; large queries spill to `<data-dir>/.duckdb_tmp`.
+[rafatrindade/sia-producao-ambulatorial](https://www.kaggle.com/datasets/rafatrindade/sia-producao-ambulatorial)
+skips files DATASUS splits into parts (`PASP2605a.dbc`, `…b`, …), so it is missing
+**São Paulo from 2013 and Rio de Janeiro / Minas Gerais from 2021**, about half of all
+procedures in recent months. This tool reads the FTP directly and handles split files.
 
 ## Development
 
@@ -163,11 +59,8 @@ uv run pytest
 uv sync --group docs && uv run mkdocs serve   # docs preview
 ```
 
-Pull requests run the tests (`.github/workflows/ci.yml`) and a strict docs build
-(`.github/workflows/docs.yml`); merges to `main` publish the docs to GitHub Pages.
+Pull requests run the tests and a strict docs build; merges to `main` publish the docs to
+GitHub Pages. See [Development](docs/contributing/development.md) and
+[Adding a database](docs/contributing/adding-a-database.md).
 
-Source: `src/intrepid_datasus/` — `catalog.py` (FTP listing, states, periods), `convert.py`
-(.dbc → Parquet), `store.py` (local layout and manifest), `fetch.py`, `query.py` (DuckDB views),
-`dictionary.py` (column descriptions), `cli.py`.
-
-Data: Ministério da Saúde / DATASUS, SIA/SUS. Cite DATASUS when publishing results.
+Data: Ministério da Saúde / DATASUS. Cite DATASUS when publishing results.

@@ -118,7 +118,7 @@ def test_acf_conversion_and_view(make_dbf, tmp_path):
     types = dict(con.execute("SELECT column_name, data_type FROM information_schema.columns "
                              "WHERE table_name = 'acf'").fetchall())
     assert types["AP_VL_AP"] == "DOUBLE" and types["competencia"] == "INTEGER"
-    # the diameters stay text: their format varies (0003, 3, 2,5), see docs/tables/acf.md
+    # the diameters stay text: their format varies (0003, 3, 2,5), see docs/databases/sia/acf.md
     assert types["ACF_VEIDIA"] == types["ACF_ARTDIA"] == types["ACF_FREMIT"] == types["ACF_DUPLEX"] == "VARCHAR"
     assert con.execute("SELECT ROUND(SUM(AP_VL_AP), 2), COUNT(*) FILTER (WHERE AP_VL_AP IS NULL), "
                        "MIN(uf), MIN(competencia), MIN(_ARQUIVO_ORIGEM) FROM acf").fetchone() == (
