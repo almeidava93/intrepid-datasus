@@ -15,7 +15,7 @@ by SIA/SUS in a given month. What a row stands for depends on the record instrum
 | `I` | BPA-I — *BPA Individualizado* | appointment | Yes |
 | `P` | APAC — main procedure | procedure in the authorisation | Yes |
 | `S` | APAC — secondary procedure | procedure in the authorisation | Yes |
-| `A` | RAAS-AD — home care (*Atenção Domiciliar*) | procedure | Yes |
+| `A` | RAAS-AD — home care (*Atenção Domiciliar*), Apr/2012 to Oct/2018; same rows as [`sad`](sad.md), R$ 0 | procedure | Yes |
 | `B` | RAAS-PSI — psychosocial care (CAPS); same rows as [`ps`](ps.md), R$ 0 | procedure | Yes |
 
 The `I` rows are also published, with a few more patient columns, as their own file type:
