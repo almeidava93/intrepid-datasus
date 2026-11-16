@@ -16,11 +16,28 @@ views over the local Parquet store, so a table only exists once its data has bee
 | `sigtap_<table>` | `datasus sigtap fetch` | latest row of each code / latest relationship | [SIGTAP tables](sigtap.md) |
 | `sigtap_<table>_all` | `datasus sigtap fetch` | every row of every fetched version | [SIGTAP tables](sigtap.md) |
 
+## SIA file types and their tables
+
+DATASUS publishes several SIA/SUS file types, each named `<CODE><UF><YY><MM>[part].dbc`
+(`PASP2605a.dbc`, `BIAC2605.dbc`, ...). Every file type you can fetch gets its own tables,
+named after its code in lowercase: a typed view (`pa`) and a text-only `_raw` view
+(`pa_raw`). A file type whose layout changed over time has one pair per layout; PA has two,
+`pa` (2008 onward) and `pa_legacy` (1994–2007), and the CLI picks the right one by month.
+
+| Code | `--table` | File type | Tables | Page |
+|---|---|---|---|---|
+| PA | `pa` (default) | Produção Ambulatorial | `pa`, `pa_raw`, `pa_legacy`, `pa_legacy_raw` | [pa](pa.md), [pa_legacy](pa_legacy.md) |
+
+Choose file types with `--table/-T` in `available`, `fetch`, `status`, `schema` and `remove`
+(`-T pa`, `-T pa,bi`, `-T all`). Without it, commands work on PA. More file types are being
+added one by one (issue #3 on GitHub).
+
 To see what exists in your own store, and every column with its description:
 
 ```bash
-uv run datasus status     # which states and months are stored locally
-uv run datasus schema     # columns of each table, with descriptions
+uv run datasus status            # which states and months are stored locally (pa)
+uv run datasus status -T all     # ... for every file type
+uv run datasus schema            # columns of pa, with descriptions (--legacy: pa_legacy)
 uv run datasus query "SELECT table_name FROM information_schema.tables ORDER BY 1"
 ```
 
@@ -40,12 +57,13 @@ pa ── PA_PROC_ID ──► procedimentos (codigo) ──► sigtap_rl_proced
 
 ## Partition columns
 
-Both `pa` and `pa_legacy` have two extra columns that are not in the DATASUS files. They
-come from the folder layout (`data/pa/competencia=YYYYMM/uf=XX/`):
+Every SIA table (`pa`, `pa_legacy`, and each file type added later) has two extra columns
+that are not in the DATASUS files. They come from the folder layout
+(`data/<table>/competencia=YYYYMM/uf=XX/`, e.g. `data/pa/competencia=202605/uf=SP/`):
 
 | Column | Type | Meaning |
 |---|---|---|
-| `competencia` | `INTEGER` | Month of the file, `YYYYMM` (equals `PA_MVM`, the processing month). |
+| `competencia` | `INTEGER` | Month of the file, `YYYYMM` (in `pa`, equals `PA_MVM`, the processing month). |
 | `uf` | `VARCHAR` | State of the file, e.g. `SP`. |
 
 Filter on them whenever you can: DuckDB then reads only the matching files.

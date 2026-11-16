@@ -1,4 +1,4 @@
-"""Download a state-month from the FTP and turn it into a local Parquet partition."""
+"""Download one file type's state-month from the FTP and turn it into a local Parquet partition."""
 from __future__ import annotations
 
 import ftplib

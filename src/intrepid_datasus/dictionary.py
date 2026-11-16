@@ -1,13 +1,31 @@
-"""Short descriptions of the main PA columns (DATASUS layout).
+"""Column descriptions for each SIA file type, one dict per layout (era).
+
+Each era in ``catalog.REGISTRY`` points at one of these dicts. Start a new file type's
+dict from ``PARTITION`` (the columns every table gets from the store layout).
 
 Official, complete documentation: https://datasus.saude.gov.br/transferencia-de-arquivos/
 (SIA → Documentação → Informe Técnico / layout PA).
 """
 
-COMMON = {
+# Columns added by the local store, present in every SIA table.
+PARTITION = {
+    "competencia": "Partition: month of the file (YYYYMM).",
+    "uf": "Partition: state of the file (SP, RJ, ...).",
+    "_ARQUIVO_ORIGEM": "Original DATASUS file this row came from (e.g. PASP2605a.dbc).",
+}
+
+# ------------------------------------------------------------------- PA
+# Text columns cast to numbers in the typed views (pa, pa_legacy); missing ones are skipped.
+PA_QUANTITY_COLS = ("PA_QTDPRO", "PA_QTDAPR")
+PA_VALUE_COLS = (
+    "PA_VALPRO", "PA_VALAPR", "PA_DIF_VAL", "NU_VPA_TOT", "NU_PA_TOT",
+    "PA_VL_CF", "PA_VL_CL", "PA_VL_INC", "PA_VL_CRD",
+)
+
+PA_COMMON = {
+    **PARTITION,
     "competencia": "Partition: month of the file (YYYYMM). Normally equals PA_MVM (processing month).",
     "uf": "Partition: state of the file (SP, RJ, ...). Same as the facility's state.",
-    "_ARQUIVO_ORIGEM": "Original DATASUS file this row came from (e.g. PASP2605a.dbc).",
     "PA_CODUNI": "Facility code (CNES; 7 digits from 2008, 6 before).",
     "PA_GESTAO": "Managing authority: state (UF code + 0000) or municipality (IBGE code).",
     "PA_CONDIC": "Management condition code (state vs municipal management; see DATASUS docs).",
@@ -26,8 +44,8 @@ COMMON = {
     "PA_CODOCO": "Occurrence / rejection code.",
 }
 
-CURRENT = {
-    **COMMON,
+PA = {
+    **PA_COMMON,
     "PA_REGCT": "Contract rule (regra contratual).",
     "PA_INCOUT": "Increment code: other.",
     "PA_INCURG": "Increment code: urgency.",
@@ -78,8 +96,8 @@ CURRENT = {
     "PA_FNTORC": "Budget source.",
 }
 
-LEGACY = {
-    **COMMON,
+PA_LEGACY = {
+    **PA_COMMON,
     "PA_DATREF": "Reference month (YYMM).",
     "PA_CODPRO": "Procedure code, old SIA table (7-8 digits; not SIGTAP).",
     "PA_CODESP": "Specialty code.",

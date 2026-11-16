@@ -1,9 +1,9 @@
 """DuckDB views over the local Parquet store.
 
-Views:
-    pa          2008 onward, numbers cast (quantities BIGINT, values DOUBLE)
-    pa_legacy   1994-2007, same casting
-    pa_raw / pa_legacy_raw   everything as text, exactly as stored
+Views, for every era of every file type in ``catalog.REGISTRY`` that has local data:
+    <era>       numbers cast (the era's quantity columns BIGINT, value columns DOUBLE)
+    <era>_raw   everything as text, exactly as stored
+    e.g. pa (2008 onward), pa_legacy (1994-2007), pa_raw, pa_legacy_raw
     ufs         state code, IBGE code, name and region
     procedimentos, cid10, ocupacoes, sigtap_*   SIGTAP lookups (after `datasus sigtap fetch`)
 """
@@ -13,16 +13,9 @@ from pathlib import Path
 
 import duckdb
 
-from .catalog import ERAS, STATES
+from .catalog import STATES, all_eras
 from .sigtap import SigtapStore
 from .store import Store
-
-QUANTITY_COLS = ["PA_QTDPRO", "PA_QTDAPR"]
-VALUE_COLS = [
-    "PA_VALPRO", "PA_VALAPR", "PA_DIF_VAL", "NU_VPA_TOT", "NU_PA_TOT",
-    "PA_VL_CF", "PA_VL_CL", "PA_VL_INC", "PA_VL_CRD",
-]
-
 
 def _sql_path(p: Path) -> str:
     return str(p.resolve()).replace("\\", "/").replace("'", "''")
@@ -38,7 +31,7 @@ def connect(store: Store, memory_limit: str | None = None, threads: int | None =
     spill = store.root / ".duckdb_tmp"
     con.execute(f"SET temp_directory = '{_sql_path(spill)}'")
 
-    for era in ERAS:
+    for era in all_eras():
         d = store.era_dir(era)
         if not d.is_dir() or next(d.glob("competencia=*/uf=*/*.parquet"), None) is None:
             continue
@@ -49,8 +42,8 @@ def connect(store: Store, memory_limit: str | None = None, threads: int | None =
             "hive_types = {'competencia': 'INTEGER', 'uf': 'VARCHAR'})"
         )
         cols = {r[0] for r in con.execute(f"DESCRIBE {era.view}_raw").fetchall()}
-        casts = [f"TRY_CAST({c} AS BIGINT) AS {c}" for c in QUANTITY_COLS if c in cols]
-        casts += [f"TRY_CAST({c} AS DOUBLE) AS {c}" for c in VALUE_COLS if c in cols]
+        casts = [f"TRY_CAST({c} AS BIGINT) AS {c}" for c in era.quantity_cols if c in cols]
+        casts += [f"TRY_CAST({c} AS DOUBLE) AS {c}" for c in era.value_cols if c in cols]
         replace = f" REPLACE ({', '.join(casts)})" if casts else ""
         con.execute(f"CREATE VIEW {era.view} AS SELECT *{replace} FROM {era.view}_raw")
 

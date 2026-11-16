@@ -1,4 +1,9 @@
-"""What exists on the DATASUS FTP: states, layouts ("eras"), files and month ranges."""
+"""What exists on the DATASUS FTP: SIA file types, their layouts ("eras"), states, files and months.
+
+``REGISTRY`` holds one ``FileType`` per supported SIA file type (PA, BI, ...). Each file type
+has one or more ``Era``s (layouts over time); each era has its FTP folder, its local folder
+(``data/<era.key>/``) and its DuckDB views (``<era.key>`` and ``<era.key>_raw``).
+"""
 from __future__ import annotations
 
 import ftplib
@@ -6,9 +11,14 @@ import random
 import re
 import time
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Mapping
+
+from . import dictionary
 
 FTP_HOST = "ftp.datasus.gov.br"
+FTP_LEGACY_DIR = "/dissemin/publicos/SIASUS/199407_200712/Dados"  # Jul/1994 - Dec/2007
+FTP_CURRENT_DIR = "/dissemin/publicos/SIASUS/200801_/Dados"       # Jan/2008 onward
 
 # IBGE code, name and region for each state.
 STATES: dict[str, tuple[str, str, str]] = {
@@ -31,23 +41,21 @@ STATES: dict[str, tuple[str, str, str]] = {
 
 @dataclass(frozen=True)
 class Era:
-    """One DATASUS file layout, stored in its own FTP folder and local table."""
-    key: str        # local folder / partition root
-    view: str       # DuckDB view name
+    """One layout of a file type: its FTP folder, months, local table and columns."""
+    key: str        # local folder (data/<key>/...) and DuckDB view name (<key>, <key>_raw)
     ftp_dir: str
     first: int      # first competência (YYYYMM)
     last: int       # last competência (YYYYMM), inclusive
+    dictionary: Mapping[str, str] = field(default_factory=dict, compare=False, repr=False)
+    quantity_cols: tuple[str, ...] = ()  # cast to BIGINT in the typed view
+    value_cols: tuple[str, ...] = ()     # cast to DOUBLE in the typed view
 
+    @property
+    def view(self) -> str:
+        return self.key
 
-LEGACY = Era("pa_legacy", "pa_legacy", "/dissemin/publicos/SIASUS/199407_200712/Dados", 199407, 200712)
-CURRENT = Era("pa", "pa", "/dissemin/publicos/SIASUS/200801_/Dados", 200801, 999912)
-ERAS = (LEGACY, CURRENT)
-
-FILE_RE = re.compile(r"^PA([A-Z]{2})(\d{2})(\d{2})([A-Z]?)\.DBC$", re.IGNORECASE)
-
-
-def era_for(comp: int) -> Era:
-    return LEGACY if comp <= LEGACY.last else CURRENT
+    def covers(self, comp: int) -> bool:
+        return self.first <= comp <= self.last
 
 
 @dataclass(frozen=True)
@@ -57,33 +65,104 @@ class RemoteFile:
     uf: str
     competencia: int
     part: str  # "" for a single file, "a", "b", ... for split states
+    table: str = "PA"  # file type code
+
+
+@dataclass(frozen=True)
+class FileType:
+    """One SIA file type (PA, BI, ATD, ...), files named ``<CODE><UF><YY><MM>[part].dbc``."""
+    code: str                 # 2-3 capital letters, as in the file names
+    name: str                 # what DATASUS calls it
+    eras: tuple[Era, ...]     # oldest first, not overlapping
+    parquet_ratio: float = 0.37  # Parquet size / .dbc size, for disk estimates (PA, May/2026)
+
+    def __post_init__(self):
+        if not re.fullmatch(r"[A-Z]{2,3}", self.code):
+            raise ValueError(f"file type code must be 2-3 capital letters, got {self.code!r}")
+        # The UF is always exactly two letters right before four digits, so one code can
+        # never match another's files (AM vs AMP, AB vs ABO): the lengths would not add up.
+        object.__setattr__(self, "_re", re.compile(
+            rf"^{self.code}([A-Z]{{2}})(\d{{2}})(\d{{2}})([A-Z]?)\.DBC$", re.IGNORECASE))
+
+    @property
+    def first(self) -> int:
+        return self.eras[0].first
+
+    @property
+    def last(self) -> int:
+        return self.eras[-1].last
+
+    @property
+    def views(self) -> list[str]:
+        return [e.view for e in self.eras]
+
+    def era_for(self, comp: int) -> Era:
+        for era in self.eras:
+            if era.covers(comp):
+                return era
+        raise ValueError(f"{self.code} has no layout for {comp}")
+
+    def parse(self, name: str, size: int = 0) -> RemoteFile | None:
+        """'PASP2605b.dbc' -> RemoteFile(uf='SP', competencia=202605, part='b', table='PA')."""
+        m = self._re.match(name)
+        if not m:
+            return None
+        uf = m.group(1).upper()
+        if uf not in STATES:
+            return None
+        yy, mm = int(m.group(2)), int(m.group(3))
+        if not 1 <= mm <= 12:
+            return None
+        year = 1900 + yy if yy >= 90 else 2000 + yy
+        return RemoteFile(name, size, uf, year * 100 + mm, m.group(4).lower(), self.code)
+
+
+# ------------------------------------------------------------------ registry
+# One entry per SIA file type. To add one, see docs/development.md
+# ("Adding a new SIA file type").
+PA = FileType("PA", "Produção Ambulatorial", (
+    Era("pa_legacy", FTP_LEGACY_DIR, 199407, 200712, dictionary.PA_LEGACY,
+        quantity_cols=dictionary.PA_QUANTITY_COLS, value_cols=dictionary.PA_VALUE_COLS),
+    Era("pa", FTP_CURRENT_DIR, 200801, 999912, dictionary.PA,
+        quantity_cols=dictionary.PA_QUANTITY_COLS, value_cols=dictionary.PA_VALUE_COLS),
+))
+
+REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA,)}
+DEFAULT_TABLES = ("PA",)  # what the CLI uses when --table is not given
+
+
+def file_type(code: str) -> FileType:
+    return REGISTRY[code.upper()]
+
+
+def all_eras() -> list[Era]:
+    return [era for ft in REGISTRY.values() for era in ft.eras]
 
 
 def parse_name(name: str, size: int = 0) -> RemoteFile | None:
-    """'PASP2605b.dbc' -> RemoteFile(uf='SP', competencia=202605, part='b')."""
-    m = FILE_RE.match(name)
-    if not m:
-        return None
-    uf = m.group(1).upper()
-    if uf not in STATES:
-        return None
-    yy, mm = int(m.group(2)), int(m.group(3))
-    if not 1 <= mm <= 12:
-        return None
-    year = 1900 + yy if yy >= 90 else 2000 + yy
-    return RemoteFile(name, size, uf, year * 100 + mm, m.group(4).lower())
+    """Parse a file name of any registered type ('PASP2605b.dbc', ...); None if none matches."""
+    for ft in REGISTRY.values():
+        rf = ft.parse(name, size)
+        if rf:
+            return rf
+    return None
 
 
 @dataclass(frozen=True)
 class Partition:
-    """Everything DATASUS publishes for one state and one month (one or more files)."""
+    """Everything DATASUS publishes for one file type, state and month (one or more files)."""
     uf: str
     competencia: int
     files: tuple[RemoteFile, ...]
+    table: str = "PA"  # file type code
+
+    @property
+    def file_type(self) -> FileType:
+        return REGISTRY[self.table]
 
     @property
     def era(self) -> Era:
-        return era_for(self.competencia)
+        return self.file_type.era_for(self.competencia)
 
     @property
     def size(self) -> int:
@@ -91,19 +170,25 @@ class Partition:
 
     @property
     def key(self) -> str:
-        return f"{self.uf}/{self.competencia}"
+        """Manifest key: 'PA/SP/202605'."""
+        return f"{self.table}/{self.uf}/{self.competencia}"
+
+    @property
+    def label(self) -> str:
+        """For messages: 'PA SP 2026-05'."""
+        return f"{self.table} {self.uf} {self.competencia // 100}-{self.competencia % 100:02d}"
 
     def signature(self) -> dict[str, int]:
         return {f.name: f.size for f in self.files}
 
 
 def group(files: list[RemoteFile]) -> list[Partition]:
-    by: dict[tuple[str, int], list[RemoteFile]] = defaultdict(list)
+    by: dict[tuple[str, str, int], list[RemoteFile]] = defaultdict(list)
     for f in files:
-        by[(f.uf, f.competencia)].append(f)
+        by[(f.table, f.uf, f.competencia)].append(f)
     return [
-        Partition(uf, comp, tuple(sorted(fs, key=lambda f: f.part)))
-        for (uf, comp), fs in sorted(by.items(), key=lambda kv: (kv[0][1], kv[0][0]))
+        Partition(uf, comp, tuple(sorted(fs, key=lambda f: f.part)), table)
+        for (table, uf, comp), fs in sorted(by.items(), key=lambda kv: (kv[0][0], kv[0][2], kv[0][1]))
     ]
 
 
@@ -140,11 +225,39 @@ def backoff(attempt: int) -> None:
     time.sleep(min(5 * 2 ** (attempt - 1), 120) + random.uniform(0, 3))
 
 
-def list_remote(eras: tuple[Era, ...] = ERAS, retries: int = 5) -> list[RemoteFile]:
-    """List every PA file in the requested eras' FTP folders."""
+def wanted_dirs(types: list[FileType], start: int, end: int) -> dict[str, list[Era]]:
+    """FTP folders to list for these file types and months, with the eras each one serves."""
+    out: dict[str, list[Era]] = defaultdict(list)
+    for ft in types:
+        for era in ft.eras:
+            if era.first <= end and era.last >= start:
+                out[era.ftp_dir].append(era)
+    return dict(out)
+
+
+def match_listing(names: list[tuple[str, int]], types: list[FileType], eras: list[Era]) -> list[RemoteFile]:
+    """Pick out of one folder listing the files of the given types whose month is in one of `eras`."""
+    out: dict[str, RemoteFile] = {}
+    for name, size in names:
+        for ft in types:
+            rf = ft.parse(name, size)
+            # each folder should only hold its own era; ignore strays.
+            # The FTP sometimes lists X.DBC and X.dbc: keep one.
+            if rf and any(e in ft.eras and e.covers(rf.competencia) for e in eras):
+                out.setdefault(rf.name.upper(), rf)
+                break
+    return list(out.values())
+
+
+def list_remote(types: list[FileType] | None = None, start: int = 0, end: int = 999912,
+                retries: int = 5) -> list[RemoteFile]:
+    """List the files of the given file types (default: all registered) with months in range.
+
+    Each FTP folder holds every file type, so each needed folder is listed only once."""
+    types = list(REGISTRY.values()) if types is None else types
     for attempt in range(1, retries + 1):
         try:
-            return _list_remote(eras)
+            return _list_remote(types, start, end)
         except (*ftplib.all_errors, EOFError):
             if attempt == retries:
                 raise
@@ -152,33 +265,47 @@ def list_remote(eras: tuple[Era, ...] = ERAS, retries: int = 5) -> list[RemoteFi
     return []
 
 
-def _list_remote(eras: tuple[Era, ...]) -> list[RemoteFile]:
-    out: dict[str, RemoteFile] = {}
+def _list_remote(types: list[FileType], start: int, end: int) -> list[RemoteFile]:
+    dirs = wanted_dirs(types, start, end)
+    if not dirs:
+        return []
+    out: list[RemoteFile] = []
     with connect(timeout=180) as ftp:
-        for era in eras:
+        for ftp_dir, eras in dirs.items():
             lines: list[str] = []
-            ftp.cwd(era.ftp_dir)
+            ftp.cwd(ftp_dir)
             ftp.retrlines("LIST", lines.append)
-            for line in lines:
-                parsed = _parse_list_line(line)
-                if not parsed:
-                    continue
-                rf = parse_name(*parsed)
-                # each folder should only hold its own era; ignore strays.
-                # The FTP sometimes lists X.DBC and X.dbc: keep one.
-                if rf and era.first <= rf.competencia <= era.last:
-                    out.setdefault(rf.name.upper(), rf)
-    return list(out.values())
+            names = [p for p in map(_parse_list_line, lines) if p]
+            out += match_listing(names, types, eras)
+    return out
 
 
-def select(partitions: list[Partition], states: set[str] | None, start: int, end: int) -> list[Partition]:
+def select(partitions: list[Partition], states: set[str] | None, start: int, end: int,
+           tables: set[str] | None = None) -> list[Partition]:
     return [
         p for p in partitions
         if start <= p.competencia <= end and (states is None or p.uf in states)
+        and (tables is None or p.table in tables)
     ]
 
 
 # ---------------------------------------------------------------- arguments
+def parse_tables(value: str | None) -> list[FileType]:
+    """'pa,bi' / 'PA BI' / 'all' -> file types in registry order (None or '' -> the default, PA)."""
+    if value is None or not value.strip():
+        return [REGISTRY[c] for c in DEFAULT_TABLES]
+    if value.strip().lower() in ("all", "todos"):
+        return list(REGISTRY.values())
+    wanted: set[str] = set()
+    for tok in re.split(r"[,\s]+", value.strip()):
+        if not tok:
+            continue
+        if tok.upper() not in REGISTRY:
+            raise ValueError(f"unknown table {tok!r} (available: {', '.join(c.lower() for c in REGISTRY)}, or all)")
+        wanted.add(tok.upper())
+    return [ft for code, ft in REGISTRY.items() if code in wanted]
+
+
 def parse_states(value: str | None) -> set[str] | None:
     """'SP,RJ' / 'sp rj' / 'all' / 'Sudeste' -> set of UFs (None means every state)."""
     if value is None or value.strip().lower() in ("", "all", "todos", "br"):

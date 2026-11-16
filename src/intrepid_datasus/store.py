@@ -1,9 +1,12 @@
 """Local data folder: Parquet partitions plus a manifest of what was fetched.
 
-Layout:
-    <root>/pa/competencia=202605/uf=SP/PASP2605a.parquet      (2008 onward)
-    <root>/pa_legacy/competencia=200312/uf=SP/PASP0312.parquet  (1994-2007)
+Layout (one folder per era of each file type, see ``catalog.REGISTRY``):
+    <root>/pa/competencia=202605/uf=SP/PASP2605a.parquet      (PA, 2008 onward)
+    <root>/pa_legacy/competencia=200312/uf=SP/PASP0312.parquet  (PA, 1994-2007)
     <root>/manifest.json
+
+Manifest keys are '<CODE>/<UF>/<YYYYMM>' ('PA/SP/202605'). Stores written before the
+multi-table registry used '<UF>/<YYYYMM>' for PA; those keys are read as PA.
 """
 from __future__ import annotations
 
@@ -15,7 +18,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .catalog import Era, Partition, era_for
+from .catalog import REGISTRY, Era, Partition
 
 DEFAULT_ROOT = Path("data")
 
@@ -28,6 +31,16 @@ def default_root() -> Path:
     return Path(os.environ.get("DATASUS_DATA_DIR", DEFAULT_ROOT))
 
 
+def _upgrade(data: dict[str, dict]) -> dict[str, dict]:
+    """Old PA-only keys ('SP/202605') -> 'PA/SP/202605'; every entry gets 'table'."""
+    out = {}
+    for k, v in data.items():
+        if k.count("/") == 1:
+            k = "PA/" + k
+        out[k] = {"table": k.split("/")[0], **v}
+    return out
+
+
 class Store:
     def __init__(self, root: Path):
         self.root = Path(root)
@@ -38,14 +51,15 @@ class Store:
     def era_dir(self, era: Era) -> Path:
         return self.root / era.key
 
-    def partition_dir(self, uf: str, comp: int) -> Path:
-        return self.era_dir(era_for(comp)) / f"competencia={comp}" / f"uf={uf}"
+    def partition_dir(self, uf: str, comp: int, table: str = "PA") -> Path:
+        era = REGISTRY[table].era_for(comp)
+        return self.era_dir(era) / f"competencia={comp}" / f"uf={uf}"
 
     # --------------------------------------------------------- manifest
     def manifest(self) -> dict[str, dict]:
         if not self.manifest_path.exists():
             return {}
-        return json.loads(self.manifest_path.read_text(encoding="utf-8"))
+        return _upgrade(json.loads(self.manifest_path.read_text(encoding="utf-8")))
 
     def _write_manifest(self, data: dict) -> None:
         self.root.mkdir(parents=True, exist_ok=True)
@@ -56,6 +70,7 @@ class Store:
     def record(self, p: Partition, rows: int, nbytes: int) -> None:
         data = self.manifest()
         data[p.key] = {
+            "table": p.table,
             "uf": p.uf,
             "competencia": p.competencia,
             "files": p.signature(),
@@ -74,15 +89,16 @@ class Store:
     def is_current(self, p: Partition) -> bool:
         """True when the local copy was built from exactly the files now on the FTP."""
         entry = self.manifest().get(p.key)
-        return bool(entry) and entry["files"] == p.signature() and self.partition_dir(p.uf, p.competencia).is_dir()
+        return (bool(entry) and entry["files"] == p.signature()
+                and self.partition_dir(p.uf, p.competencia, p.table).is_dir())
 
     # -------------------------------------------------------- partitions
     def staging_dir(self, p: Partition) -> Path:
-        return self.tmp / f"{p.uf}{p.competencia}"
+        return self.tmp / f"{p.table}{p.uf}{p.competencia}"
 
     def publish(self, p: Partition, built: Path) -> int:
         """Replace the partition folder with a freshly built one; returns its size in bytes."""
-        final = self.partition_dir(p.uf, p.competencia)
+        final = self.partition_dir(p.uf, p.competencia, p.table)
         final.parent.mkdir(parents=True, exist_ok=True)
         old = final.with_name(final.name + ".old")
         if old.exists():
@@ -95,11 +111,11 @@ class Store:
         return sum(f.stat().st_size for f in final.glob("*.parquet"))
 
     def remove(self, keys: list[str]) -> int:
-        """Delete partitions by manifest key ('SP/202605'); returns bytes freed."""
+        """Delete partitions by manifest key ('PA/SP/202605'); returns bytes freed."""
         freed = 0
         for key in keys:
-            uf, comp = key.split("/")
-            d = self.partition_dir(uf, int(comp))
+            table, uf, comp = key.split("/")
+            d = self.partition_dir(uf, int(comp), table)
             if d.exists():
                 freed += sum(f.stat().st_size for f in d.glob("*"))
                 shutil.rmtree(d)
