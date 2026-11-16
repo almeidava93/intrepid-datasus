@@ -15,6 +15,8 @@ views over the local Parquet store, so a table only exists once its data has bee
 | `am_raw` | same | same, every column as text | [am](am.md#am-vs-am_raw) |
 | `aq` | `datasus fetch -T aq` (2008 onward) | one chemotherapy APAC, per month; also in `pa` | [aq](aq.md), [APAC](apac.md) |
 | `aq_raw` | same | same, every column as text | [aq](aq.md#aq-vs-aq_raw) |
+| `ar` | `datasus fetch -T ar` (2008 onward) | one radiotherapy APAC, per month; also in `pa` | [ar](ar.md), [APAC](apac.md) |
+| `ar_raw` | same | same, every column as text | [ar](ar.md#ar-vs-ar_raw) |
 | `ufs` | nothing (built in) | one state | [Lookups](lookups.md#ufs) |
 | `procedimentos` | `datasus sigtap fetch` | one SIGTAP procedure code | [Lookups](lookups.md#procedimentos) |
 | `cid10` | `datasus sigtap fetch` | one ICD-10 code | [Lookups](lookups.md#cid10) |
@@ -36,8 +38,9 @@ named after its code in lowercase: a typed view (`pa`) and a text-only `_raw` vi
 | BI | `bi` | BPA Individualizado | `bi`, `bi_raw` | [bi](bi.md) |
 | AM | `am` | APAC Medicamentos | `am`, `am_raw` | [am](am.md) |
 | AQ | `aq` | APAC Quimioterapia | `aq`, `aq_raw` | [aq](aq.md) |
+| AR | `ar` | APAC Radioterapia | `ar`, `ar_raw` | [ar](ar.md) |
 
-AM and AQ are the first of the APAC file types (authorisations for high-cost treatments: AM, AQ,
+AM, AQ and AR are the first of the APAC file types (authorisations for high-cost treatments: AM, AQ,
 AR, AD, ATD, ...). What an APAC is, how its months continue and the `AP_` columns they all
 share are described once, on the [APAC file types](apac.md) page.
 
@@ -81,12 +84,20 @@ aq ── AP_PRIPAL  ──► procedimentos (codigo)    chemotherapy procedure 
  │ ── uf         ──► ufs (uf)
  │ ── LEFT(AP_MUNPCN, 2) ──► ufs (ibge)
  └─── AP_AUTORIZ, AP_CMP ──► pa (PA_AUTORIZ, PA_CMP, same competencia and uf)
+
+ar ── AP_PRIPAL  ──► procedimentos (codigo)    radiotherapy procedure (site treated)
+ │ ── AP_CIDPRI, AR_CIDTR1..3, AR_CIDINI1..3 ──► cid10 (codigo)    cancer, treated areas
+ │ ── uf         ──► ufs (uf)
+ │ ── LEFT(AP_MUNPCN, 2) ──► ufs (ibge)
+ │ ── AP_CNSPCN  ──► aq (AP_CNSPCN)    same patient's chemotherapy
+ └─── AP_AUTORIZ, AP_CMP ──► pa (PA_AUTORIZ, PA_CMP, same competencia and uf)
 ```
 
 `bi` rows are the `pa` rows with `PA_DOCORIG = 'I'`: query one or the other, never both
 summed (see [bi](bi.md#how-bi-relates-to-pa-double-counting)). Likewise `am` rows are `pa`
 rows with `PA_DOCORIG = 'P'` (see [am](am.md#how-am-relates-to-pa-double-counting)), and so are
-`aq` rows (see [aq](aq.md#how-aq-relates-to-pa-double-counting)).
+`aq` rows (see [aq](aq.md#how-aq-relates-to-pa-double-counting)) and `ar` rows (see
+[ar](ar.md#how-ar-relates-to-pa-double-counting)).
 
 `pa_legacy` joins `ufs` the same way, but **not** the SIGTAP lookups: its procedure codes
 (`PA_CODPRO`) belong to the old SIA table that SIGTAP replaced in Jan/2008.
@@ -117,7 +128,7 @@ The column `_ARQUIVO_ORIGEM` records the original DATASUS file of each row
   `ftp://ftp.datasus.gov.br/dissemin/publicos/SIASUS/200801_/Doc/Informe_Tecnico_SIASUS_2019_07.pdf`.
 - **BI layout:** same Informe Técnico, section 5.2 (*Layout do arquivo de BPA-I*).
 - **APAC layouts (AM, ...):** same Informe Técnico, section 3.4 (*Layout dos arquivos de APAC*;
-  AM is 3.4.2, AQ 3.4.4).
+  AM is 3.4.2, AQ 3.4.4, AR 3.4.5).
 - **SIGTAP:** the layout files (`*_layout.txt`) shipped inside each
   `TabelaUnificada_YYYYMM_v*.zip` at `ftp://ftp2.datasus.gov.br/public/sistemas/tup/downloads`,
   and the online browser at [sigtap.datasus.gov.br](http://sigtap.datasus.gov.br/).

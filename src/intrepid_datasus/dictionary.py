@@ -210,7 +210,7 @@ APAC_COMMON = {
     "AP_CNPJMNT": "Maintaining body's CNPJ, or zeros if none.",
     "AP_CNSPCN": "Patient's national health card (CNS), ENCODED by DATASUS (not the real number). "
                  "Same value = same patient within the data; cannot be linked to other systems. "
-                 "Can be empty or a placeholder in some types (AQ): see the table page.",
+                 "Can be empty or a placeholder in some types (AQ, AR): see the table page.",
     "AP_COIDADE": "Unit of AP_NUIDADE: 2 = days, 3 = months, 4 = years, 5 = 100 years or more "
                   "(age = 100 + AP_NUIDADE), 9 = not informed.",
     "AP_NUIDADE": "Patient age (2 characters), in the unit given by AP_COIDADE.",
@@ -221,7 +221,7 @@ APAC_COMMON = {
     "AP_CEPPCN": "Postcode (CEP) of the patient's address.",
     "AP_UFDIF": "Patient lives in another state than the facility (0 = same, 1 = different).",
     "AP_MNDIF": "Patient lives in another municipality than the facility (0 = same, 1 = different). "
-                "Unreliable (always 1 in AM and AQ): compare AP_MUNPCN with AP_UFMUN instead.",
+                "Unreliable (always 1 in AM, AQ and AR): compare AP_MUNPCN with AP_UFMUN instead.",
     "AP_DTINIC": "Start of the APAC's validity period (YYYYMMDD).",
     "AP_DTFIM": "End of the APAC's validity period (YYYYMMDD); up to 3 months after AP_DTINIC.",
     "AP_TPATEN": "APAC type of care (tipo de atendimento / laudo); fixed per file type.",
@@ -351,4 +351,72 @@ AQ = apac("AQ", {
                          f"(e.g. 011 anastrozole, 037 tamoxifen, 090 hydroxyurea, 105 imatinib: inferred "
                          f"from AQ_ESQU, no official table in the package). Column from Jan/2021, filled "
                          f"from Mar/2022; empty when the scheme has fewer drugs." for i in range(1, 11)},
+})
+
+
+
+# ------------------------------------------------------------------- AR
+# APAC de Radioterapia (oncology), files AR<UF><YY><MM>.dbc, Jan/2008 onward. One layout:
+# AP_NATJUR added Jul/2016 (NULL before). Source: "Informe Técnico SIASUS" (Jul/2019), section
+# 3.4.5 "Layout do arquivo de APAC de radioterapia: ARUFAAMM.DBF" (URL above); AR_SMRD has no
+# description there. The laudo fields AR_CID10 .. AR_DTINTR are those of AQ. In 2019 SIGTAP
+# replaced the per-field/per-session radiotherapy codes by one code per treatment and body
+# site (from May/2019): since then each row is a whole treatment (AP_TPAPAC = 3) and AR_NUMC*, the 2nd and
+# 3rd treated area and their dates are empty. Values and fill rates: docs/tables/ar.md.
+AR_QUANTITY_COLS = APAC_QUANTITY_COLS
+AR_VALUE_COLS = APAC_VALUE_COLS
+
+AR = apac("AR", {
+    "AP_PRIPAL": "Radiotherapy procedure, SIGTAP code (10 digits, always 030401...). Until 2019 a technique "
+                 "billed per field, insertion or session (0304010090 cobalt therapy per field, 0304010294 "
+                 "linear accelerator per field, 0304010073 HDR brachytherapy per insertion, ...); since 2019 "
+                 "one code per treatment and site (0304010413 breast, 0304010456 prostate, 0304010537 "
+                 "metastases/myeloma, ...). Joins procedimentos.",
+    "AP_VL_AP": "Approved value of the APAC in this month, R$ (number, nominal) = SUM(PA_VALAPR) of its pa "
+                "rows (main + secondary procedures). Since 2019 the price of the whole treatment.",
+    "AP_TPATEN": "APAC type of care; always 04 (radiotherapy) in AR.",
+    "AP_TPAPAC": "1 = first month of an APAC, 2 = later months, 3 = single APAC (the whole treatment, "
+                 "billed once). Always 3 since 2020 (new procedures from May/2019): one row per treatment.",
+    "AP_MNDIF": "Patient lives in another municipality than the facility. Always 1 in AR (wrong): "
+                "compare AP_MUNPCN with AP_UFMUN instead.",
+    "AP_CIDPRI": "Cancer diagnosis, ICD-10 (no dot, e.g. 'C509'); always filled. The cancer of the APAC "
+                 "(C79x/C77x for metastases treated). Joins cid10.",
+    "AP_CNSPCN": "Patient's CNS, ENCODED by DATASUS. Empty (NULL) or the placeholder '{{{{{{{{{{{{{{{' on a "
+                 "share of rows that grows from mid-2024 and jumps from Nov/2025 (95% of all rows in "
+                 "Aug/2026, 98-100% in SC and SP): exclude both before counting or following patients.",
+    "AR_SMRD": "Not described in the layout document; always empty.",
+    "AR_CID10": "Tumour topography, ICD-10 (no dot). Usually equals AP_CIDPRI; empty on about 1 row in 4. "
+                "Use AP_CIDPRI. Joins cid10.",
+    "AR_LINFIN": "Regional lymph nodes invaded: S = yes, N = no, 3 = not assessable.",
+    "AR_ESTADI": "Stage (UICC): 0, 1, 2, 3 or 4; empty on about 1 row in 5 (benign disease, skin, ...).",
+    "AR_GRAHIS": "Histopathological grade, 2 characters, loosely coded: digits (0-12), 00-06, G1-G4/GX, X, XX, "
+                 "II, ... Not a clean code; use with care.",
+    "AR_DTIDEN": "Date the cancer was identified by pathology (diagnosis date, YYYYMMDD).",
+    "AR_TRANTE": "Previous treatments: S = yes, N = no; empty on about 1 row in 5 (and C on a few 2009-2012 rows).",
+    "AR_CIDINI1": "ICD-10 of the 1st previous treatment, or empty. Joins cid10.",
+    "AR_DTINI1": "Start date of the 1st previous treatment (YYYYMMDD), or empty/zeros.",
+    "AR_CIDINI2": "ICD-10 of the 2nd previous treatment, or empty.",
+    "AR_DTINI2": "Start date of the 2nd previous treatment (YYYYMMDD), or empty/zeros.",
+    "AR_CIDINI3": "ICD-10 of the 3rd previous treatment, or empty.",
+    "AR_DTINI3": "Start date of the 3rd previous treatment (YYYYMMDD), or empty/zeros.",
+    "AR_CONTTR": "Continuation of a treatment already under way: S = yes, N = no (mostly N).",
+    "AR_DTINTR": "Start date of the requested treatment (YYYYMMDD).",
+    "AR_FINALI": "Purpose of the radiotherapy: 1 = radical (curative), 2 = adjuvant, 3 = pain relief "
+                 "(antiálgica), 4 = palliative, 5 = prior (neoadjuvant), 6 = to stop bleeding "
+                 "(anti-hemorrágica). 7 (and before 2019 also 8, 9, 0) occur and are not in the layout.",
+    "AR_CIDTR1": "Topography of the 1st area treated (irradiated), ICD-10. Usually AP_CIDPRI; for metastases "
+                 "the site irradiated (C795 bone, C793 brain). Joins cid10.",
+    "AR_CIDTR2": "Topography of the 2nd area treated, ICD-10, or empty. Always empty since 2020.",
+    "AR_CIDTR3": "Topography of the 3rd area treated, ICD-10, or empty. Always empty since 2020.",
+    "AR_NUMC1": "Number of fields or insertions for the 1st area (3 digits, also '4', '04'); some facilities "
+                "write the total field applications planned (e.g. 120 = 4 fields x 30 sessions). Always "
+                "empty since 2020.",
+    "AR_INIAR1": "Start date of the irradiation of the 1st area (YYYYMMDD).",
+    "AR_INIAR2": "Start date of the irradiation of the 2nd area (YYYYMMDD), or empty/zeros.",
+    "AR_INIAR3": "Start date of the irradiation of the 3rd area (YYYYMMDD), or empty/zeros.",
+    "AR_FIMAR1": "End date of the irradiation of the 1st area (YYYYMMDD).",
+    "AR_FIMAR2": "End date of the irradiation of the 2nd area (YYYYMMDD), or empty/zeros.",
+    "AR_FIMAR3": "End date of the irradiation of the 3rd area (YYYYMMDD), or empty/zeros.",
+    "AR_NUMC2": "Number of fields or insertions for the 2nd area, or empty/'000'. Always empty since 2020.",
+    "AR_NUMC3": "Number of fields or insertions for the 3rd area, or empty/'000'. Always empty since 2020.",
 })
