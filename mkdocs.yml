@@ -40,6 +40,7 @@ nav:
       - bi (BPA Individualizado): tables/bi.md
       - APAC file types: tables/apac.md
       - am (APAC Medicamentos): tables/am.md
+      - aq (APAC Quimioterapia): tables/aq.md
       - Lookup tables: tables/lookups.md
       - SIGTAP tables: tables/sigtap.md
   - API reference:

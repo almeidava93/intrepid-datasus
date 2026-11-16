@@ -137,7 +137,8 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       use your code; it shadows the real entry only inside those tests, so leave it, and
       don't use its `registry` fixture in tests of the real entry. `tests/test_bi.py` is
       a complete example; `tests/test_am.py` is the one for APAC types (it also checks the
-      shared `AP_` columns and that `AMPA2605.dbc` is AM, not AMP).
+      shared `AP_` columns and that `AMPA2605.dbc` is AM, not AMP), and `tests/test_aq.py`
+      shows a type whose files have three column sets (63, 64 and 74 columns) in one era.
 5. **Docs:**
     - a page `docs/tables/<code>.md` (copy the structure of `bi.md`, or `am.md` for an APAC
       type: link to [APAC file types](tables/apac.md) for the `AP_` columns and only list
@@ -152,9 +153,12 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
     - add the views to the table list in `docs/querying.md` and `README.md`;
     - for overlap with PA, fetch the same state-month of PA and compare row counts and
       `SUM`s against `pa WHERE PA_DOCORIG = ...` (BI equals `PA_DOCORIG = 'I'` exactly).
-      For APAC types, join on `AP_AUTORIZ = PA_AUTORIZ` (same `competencia`, `uf`): each
-      APAC row should be one `PA_DOCORIG = 'P'` row, and `AP_VL_AP` the sum of `PA_VALAPR`
-      over its `P` and `S` rows (AM: exact, and AM = `P` rows with `PA_TPFIN = '02'`).
+      For APAC types, join on `AP_AUTORIZ = PA_AUTORIZ` **and** `AP_CMP = PA_CMP` (same
+      `competencia`, `uf`): a file can hold the same APAC twice, for the current month and
+      billed late for an earlier one (AQ). Each APAC row should be one `PA_DOCORIG = 'P'`
+      row, and `AP_VL_AP` the sum of `PA_VALAPR` over its `P` and `S` rows (AM: exact, and
+      AM = `P` rows with `PA_TPFIN = '02'`; AQ: exact, and AQ = `P` rows with `PA_PROC_ID`
+      from `0304020000` to `0304089999`).
       Check whether some other column of `pa` (`PA_TPFIN`, the procedure group) picks out
       exactly your type's rows;
     - check `uv run mkdocs build --strict` (needs `uv sync --group docs`).
@@ -171,7 +175,8 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
     For a big type, also convert one large file (the biggest SP part) and record download
     and conversion time, peak RAM, temporary DBF size and the Parquet ratio. BI: a 172 MB
     part with 4.7 M rows took 1.9 GB of RAM and a 1.2 GB temporary DBF. AM: the largest
-    file (82 MB, 1.37 M rows) took 28 s and about 1.2 GB of RAM. The temporary DBF is
+    file (82 MB, 1.37 M rows) took 28 s and about 1.2 GB of RAM; AQ's (10.5 MB, 102 k
+    rows), 7 s and 0.4 GB. The temporary DBF is
     (record length × rows): the record length is 1 + the sum of the field widths from the
     header probe.
 
