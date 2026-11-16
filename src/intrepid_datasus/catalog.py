@@ -167,7 +167,12 @@ AN = FileType("AN", "APAC Nefrologia", (  # discontinued: replaced by ATD (data 
         quantity_cols=dictionary.AN_QUANTITY_COLS, value_cols=dictionary.AN_VALUE_COLS),
 ), parquet_ratio=0.66)  # all 2,145 files: 0.30 GB Parquet / 0.46 GB .dbc
 
-REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA, BI, AM, AQ, AR, AD, ATD, AN)}
+PS = FileType("PS", "RAAS Psicossocial", (
+    Era("ps", FTP_CURRENT_DIR, 201211, 999912, dictionary.PS,
+        quantity_cols=dictionary.PS_QUANTITY_COLS, value_cols=dictionary.PS_VALUE_COLS),
+), parquet_ratio=0.62)  # all 4,421 files: 2.05 GB Parquet / 3.31 GB .dbc
+
+REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA, BI, AM, AQ, AR, AD, ATD, AN, PS)}
 DEFAULT_TABLES = ("PA",)  # what the CLI uses when --table is not given
 
 

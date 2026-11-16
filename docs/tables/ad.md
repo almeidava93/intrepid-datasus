@@ -90,7 +90,8 @@ pandemic) → 4.7 M (2025). The two changes that matter:
   monthly follow-up in psychosocial care centres (`030108…`: intensive, semi-intensive and
   non-intensive care, for mental disorders, alcohol/drugs, children). These APACs ran for
   months, which is why rows per APAC were 1.7 until 2012 and 1.1 since. From Jan/2013 that care
-  is billed on the RAAS (file type PS, from Nov/2012), and AD rows fell from 367 k (Dec/2012)
+  is billed on the RAAS (file type PS, [`ps`](ps.md), from Nov/2012; see
+  [From AD to PS](ps.md#from-ad-to-ps-2013) for a continuous series), and AD rows fell from 367 k (Dec/2012)
   to 153 k (Jan/2013). **Don't compare AD totals across 2012/2013.**
 - **2019 onward: new eye procedures.** OCT (`0211060283`) and intravitreal retina treatment
   (`0303050233`, anti-VEGF injections) appear in AD from Jan/Feb 2019 and grew to 13% and 7% of rows

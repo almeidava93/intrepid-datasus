@@ -16,7 +16,7 @@ by SIA/SUS in a given month. What a row stands for depends on the record instrum
 | `P` | APAC — main procedure | procedure in the authorisation | Yes |
 | `S` | APAC — secondary procedure | procedure in the authorisation | Yes |
 | `A` | RAAS-AD — home care (*Atenção Domiciliar*) | procedure | Yes |
-| `B` | RAAS-PSI — psychosocial care | procedure | Yes |
+| `B` | RAAS-PSI — psychosocial care (CAPS); same rows as [`ps`](ps.md), R$ 0 | procedure | Yes |
 
 The `I` rows are also published, with a few more patient columns, as their own file type:
 see [bi](bi.md). Don't add `bi` to `pa`, it would count them twice.
