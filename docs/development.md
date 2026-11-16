@@ -56,7 +56,10 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
    to `0x0D`). Read the first 4 KB of a file with `ftp.transfercmd("RETR ...")`, close the
    data socket *and* the control connection (`ftp.abort()` hangs on this server), and
    parse it. Do this for one file per year (and the month where columns change): if the
-   columns change, the file type needs one era per layout. A column only *added* over time
+   columns change, the file type needs one era per layout. For a small type, probe every
+   month of one state, not just January: **Dec/2011** files of every type then published
+   (AM, AQ, AR, AD, AN, BI) carry `AP_NATJUR` / `NAT_JUR` for that one month (empty in AN),
+   which a January-only probe misses. Add it to the field-list test of your type. A column only *added* over time
    (BI's `NAT_JUR`) needs no new era; the views read with `union_by_name` and older months
    show `NULL`. The same trick gives row counts, e.g. to compare a whole file with its parts.
    The header does not show changes in *meaning*: also look at the main procedure codes and
@@ -151,7 +154,9 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       shared `AP_` columns and that `AMPA2605.dbc` is AM, not AMP), and `tests/test_aq.py`
       shows a type whose files have three column sets (63, 64 and 74 columns) in one era;
       `tests/test_ar.py` is the shortest APAC example (two column sets), and `tests/test_atd.py`
-      the one for a type that starts later than 2008 (it checks `era_for` before its first month).
+      the one for a type that starts later than 2008 (it checks `era_for` before its first month);
+      `tests/test_an.py` is the one for a discontinued type (real last month, one odd month
+      with an extra column).
 5. **Docs:**
     - a page `docs/tables/<code>.md` (copy the structure of `bi.md`, or `am.md` for an APAC
       type: link to [APAC file types](tables/apac.md) for the `AP_` columns and only list
@@ -174,7 +179,8 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       from `0304020000` to `0304089999`; AR: exact, `P` rows with `PA_PROC_ID LIKE '030401%'`,
       checked on a month before and after its 2019 procedure change; AD: exact, but no `pa`
       column picks its rows out, and some APACs, such as glaucoma follow-up, are not in AD
-      either; ATD: exact, and ATD = `P` rows with `PA_PROC_ID LIKE '0305%'`, from Aug/2014).
+      either; ATD: exact, and ATD = `P` rows with `PA_PROC_ID LIKE '0305%'`, from Aug/2014;
+      AN: exact, the same selection until May/2014, checked in 2008, 2011 and 2014).
       For a type that replaced another (ATD after AN), compare the months around the switch
       with `pa` too: Jun–Jul/2014 dialysis is in `pa` but mostly in neither AN nor ATD.
       Check whether some other column of `pa` (`PA_TPFIN`, the procedure group) picks out
@@ -184,7 +190,10 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       before writing anything about patients: from Nov/2025 it is missing on most AR rows
       (95% in Aug/2026), on 2–22% of AQ rows (SC, 2026), on 67% of AD rows in Aug/2026
       (rising since Apr/2024), on 96% of ATD rows in Aug/2026 (2% in 2024, 15% in Mar/2026,
-      then a jump from May/2026), on none in AM;
+      then a jump from May/2026), on none in AM or AN (2008–2014);
+    - don't trust a shared column to behave as in another type: `AP_CIDPRI` is always
+      `0000` in ATD but filled in AN, and `AP_TPATEN` is a different fixed code in each type.
+      Count the values of each shared column once on the full history;
     - check `uv run mkdocs build --strict` (needs `uv sync --group docs`).
 6. **Check for real** with one small state-month, and paste the output in the PR:
 
@@ -211,6 +220,10 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
 
 7. **PR** against `main` (or the previous sub-issue's branch while its PR is open) with `Closes #<sub-issue>` in the body, saying which state-month
    was checked.
+8. **Clean up.** Once the PR is open and the numbers are in the docs, delete every data
+   store you created for the checks (the `-d` folders of steps 5 and 6, merged history
+   stores, downloaded files): they are only test data, disks are small, and the sessions of
+   issue #3 run one after another. Keep the scripts and the numbers in your notes, not the data.
 
 ## Data source
 

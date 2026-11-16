@@ -44,6 +44,7 @@ nav:
       - ar (APAC Radioterapia): tables/ar.md
       - ad (APAC Laudos Diversos): tables/ad.md
       - atd (APAC Tratamento Dialítico): tables/atd.md
+      - an (APAC Nefrologia): tables/an.md
       - Lookup tables: tables/lookups.md
       - SIGTAP tables: tables/sigtap.md
   - API reference:

@@ -195,6 +195,7 @@ def fetch(
                datasus fetch -T ar -s SC -f 2024   (APAC Radioterapia)
                datasus fetch -T ad -s SC -f 2024   (APAC Laudos Diversos)
                datasus fetch -T atd -s SC -f 2024  (APAC Tratamento Dialítico, from 2014-08)
+               datasus fetch -T an -s SC -f 2013   (APAC Nefrologia, 2008 to 2014-07)
     """
     store = _store(ctx)
     types = _tables(table)
@@ -353,7 +354,7 @@ def schema(
     """List the columns of each chosen table's view with short descriptions.
 
     Default: the 'pa' view; with --legacy, 'pa_legacy'.
-    Examples:  datasus schema      datasus schema --legacy      datasus schema -T am      datasus schema -T aq      datasus schema -T ar      datasus schema -T ad      datasus schema -T atd      datasus schema -T all
+    Examples:  datasus schema      datasus schema --legacy      datasus schema -T am      datasus schema -T aq      datasus schema -T ar      datasus schema -T ad      datasus schema -T atd      datasus schema -T an      datasus schema -T all
     """
     types = _tables(table)
     con = q.connect(_store(ctx))

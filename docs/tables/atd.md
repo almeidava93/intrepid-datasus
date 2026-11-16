@@ -4,7 +4,7 @@
 (e.g. `ATDSC2605.dbc`). No state is split into parts.
 **Coverage:** Aug/2014 to the latest month DATASUS has released (Aug/2026 when this was
 written): 145 months, every state every month except AP (141). Before Aug/2014, dialysis
-APACs are in **AN** (APAC Nefrologia): see [from AN to ATD](#from-an-to-atd-2014).
+APACs are in **[AN](an.md)** (APAC Nefrologia): see [from AN to ATD](#from-an-to-atd-2014).
 **Size on the FTP** (Nov/2026): 3,911 files, about **1.06 GB** of `.dbc`, 16.7 M rows,
 R$ 44.8 bn. The largest files (SP) have about 30,000 rows a month; small states a few hundred.
 Parquet takes about 0.75× the `.dbc` size (0.79 GB for everything: the files are small, and

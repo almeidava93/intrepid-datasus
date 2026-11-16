@@ -21,6 +21,8 @@ views over the local Parquet store, so a table only exists once its data has bee
 | `ad_raw` | same | same, every column as text | [ad](ad.md#ad-vs-ad_raw) |
 | `atd` | `datasus fetch -T atd` (Aug/2014 onward) | one dialysis APAC (patient), per month; also in `pa` | [atd](atd.md), [APAC](apac.md) |
 | `atd_raw` | same | same, every column as text | [atd](atd.md#atd-vs-atd_raw) |
+| `an` | `datasus fetch -T an` (Jan/2008 to Jul/2014) | one dialysis APAC (patient), per month; also in `pa` | [an](an.md), [APAC](apac.md) |
+| `an_raw` | same | same, every column as text | [an](an.md#an-vs-an_raw) |
 | `ufs` | nothing (built in) | one state | [Lookups](lookups.md#ufs) |
 | `procedimentos` | `datasus sigtap fetch` | one SIGTAP procedure code | [Lookups](lookups.md#procedimentos) |
 | `cid10` | `datasus sigtap fetch` | one ICD-10 code | [Lookups](lookups.md#cid10) |
@@ -45,9 +47,10 @@ named after its code in lowercase: a typed view (`pa`) and a text-only `_raw` vi
 | AR | `ar` | APAC Radioterapia | `ar`, `ar_raw` | [ar](ar.md) |
 | AD | `ad` | APAC Laudos Diversos | `ad`, `ad_raw` | [ad](ad.md) |
 | ATD | `atd` | APAC Tratamento Dialítico | `atd`, `atd_raw` | [atd](atd.md) |
+| AN | `an` | APAC Nefrologia (2008 to Jul/2014) | `an`, `an_raw` | [an](an.md) |
 
-AM, AQ, AR, AD and ATD are the first of the APAC file types (authorisations for high-cost treatments: AM, AQ,
-AR, AD, ATD, ...). What an APAC is, how its months continue and the `AP_` columns they all
+AM, AQ, AR, AD, ATD and AN are the first of the APAC file types (authorisations for high-cost
+treatments: AM, AQ, AR, AD, ATD, AN, ...). What an APAC is, how its months continue and the `AP_` columns they all
 share are described once, on the [APAC file types](apac.md) page.
 
 Choose file types with `--table/-T` in `available`, `fetch`, `status`, `schema` and `remove`
@@ -110,6 +113,13 @@ atd ── AP_PRIPAL ──► procedimentos (codigo)    dialysis procedure (hae
  │ ── LEFT(AP_MUNPCN, 2) ──► ufs (ibge)
  │ ── AP_CNSPCN  ──► an (AP_CNSPCN)    same patient before Aug/2014
  └─── AP_AUTORIZ, AP_CMP ──► pa (PA_AUTORIZ, PA_CMP, same competencia and uf)
+
+an ── AP_PRIPAL  ──► procedimentos (codigo)    dialysis procedure
+ │ ── AP_CIDPRI  ──► cid10 (codigo)
+ │ ── uf         ──► ufs (uf)
+ │ ── LEFT(AP_MUNPCN, 2) ──► ufs (ibge)
+ │ ── AP_CNSPCN  ──► atd (AP_CNSPCN)    same patient from Aug/2014
+ └─── AP_AUTORIZ, AP_CMP ──► pa (PA_AUTORIZ, PA_CMP, same competencia and uf)
 ```
 
 `bi` rows are the `pa` rows with `PA_DOCORIG = 'I'`: query one or the other, never both
@@ -117,8 +127,9 @@ summed (see [bi](bi.md#how-bi-relates-to-pa-double-counting)). Likewise `am` row
 rows with `PA_DOCORIG = 'P'` (see [am](am.md#how-am-relates-to-pa-double-counting)), and so are
 `aq` rows (see [aq](aq.md#how-aq-relates-to-pa-double-counting)) and `ar` rows (see
 [ar](ar.md#how-ar-relates-to-pa-double-counting)), `ad` rows (see
-[ad](ad.md#how-ad-relates-to-pa-double-counting)) and `atd` rows (see
-[atd](atd.md#how-atd-relates-to-pa-double-counting)).
+[ad](ad.md#how-ad-relates-to-pa-double-counting)), `atd` rows (see
+[atd](atd.md#how-atd-relates-to-pa-double-counting)) and `an` rows (see
+[an](an.md#how-an-relates-to-pa-double-counting)).
 
 `pa_legacy` joins `ufs` the same way, but **not** the SIGTAP lookups: its procedure codes
 (`PA_CODPRO`) belong to the old SIA table that SIGTAP replaced in Jan/2008.
@@ -149,7 +160,8 @@ The column `_ARQUIVO_ORIGEM` records the original DATASUS file of each row
   `ftp://ftp.datasus.gov.br/dissemin/publicos/SIASUS/200801_/Doc/Informe_Tecnico_SIASUS_2019_07.pdf`.
 - **BI layout:** same Informe Técnico, section 5.2 (*Layout do arquivo de BPA-I*).
 - **APAC layouts (AM, ...):** same Informe Técnico, section 3.4 (*Layout dos arquivos de APAC*;
-  AD is 3.4.1, AM 3.4.2, AQ 3.4.4, AR 3.4.5, ATD 3.4.8). ATD code lists: DATASUS *Layout da interface texto do APAC e do SIA* (Apr/2014), part 18.
+  AD is 3.4.1, AM 3.4.2, AQ 3.4.4, AR 3.4.5, ATD 3.4.8, AN 3.4.3). ATD and AN code lists: DATASUS *Layout da interface texto do APAC e do SIA*
+  (Apr/2014), part 18 (ATD) and part 09 (AN).
 - **SIGTAP:** the layout files (`*_layout.txt`) shipped inside each
   `TabelaUnificada_YYYYMM_v*.zip` at `ftp://ftp2.datasus.gov.br/public/sistemas/tup/downloads`,
   and the online browser at [sigtap.datasus.gov.br](http://sigtap.datasus.gov.br/).
