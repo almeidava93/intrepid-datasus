@@ -65,6 +65,11 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
    health care, 60% of its rows, moved to RAAS in Jan/2013). Group the procedures by SIGTAP
    subgroup (`LEFT(AP_PRIPAL, 4)`, or `procedimentos.subgrupo`) per year. Also count
    `AP_PRIPAL IS NULL`: AD blanks it on APACs billed late with a code that was just retired.
+   Columns are not always in the same order across types: in ATD, `AP_NATJUR` comes *after*
+   the type's own columns (last), so copy the field list from the probe, not from another type.
+   The Informe Técnico often lists columns without their codes; the facilities' import layout
+   (*Layout da interface texto do APAC e do SIA*, Apr/2014, one *parte variável* per laudo:
+   18 = dialysis, 19 = multiprofessional CKD follow-up) has the code lists.
 
     ```python
     import struct
@@ -145,7 +150,8 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       a complete example; `tests/test_am.py` is the one for APAC types (it also checks the
       shared `AP_` columns and that `AMPA2605.dbc` is AM, not AMP), and `tests/test_aq.py`
       shows a type whose files have three column sets (63, 64 and 74 columns) in one era;
-      `tests/test_ar.py` is the shortest APAC example (two column sets).
+      `tests/test_ar.py` is the shortest APAC example (two column sets), and `tests/test_atd.py`
+      the one for a type that starts later than 2008 (it checks `era_for` before its first month).
 5. **Docs:**
     - a page `docs/tables/<code>.md` (copy the structure of `bi.md`, or `am.md` for an APAC
       type: link to [APAC file types](tables/apac.md) for the `AP_` columns and only list
@@ -168,14 +174,17 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       from `0304020000` to `0304089999`; AR: exact, `P` rows with `PA_PROC_ID LIKE '030401%'`,
       checked on a month before and after its 2019 procedure change; AD: exact, but no `pa`
       column picks its rows out, and some APACs, such as glaucoma follow-up, are not in AD
-      either).
+      either; ATD: exact, and ATD = `P` rows with `PA_PROC_ID LIKE '0305%'`, from Aug/2014).
+      For a type that replaced another (ATD after AN), compare the months around the switch
+      with `pa` too: Jun–Jul/2014 dialysis is in `pa` but mostly in neither AN nor ATD.
       Check whether some other column of `pa` (`PA_TPFIN`, the procedure group) picks out
       exactly your type's rows, and list by procedure subgroup the `P` rows that are in no
       APAC table yet;
     - for APAC types, check `AP_CNSPCN` by month and state (`NULL` and `{{{{{{{{{{{{{{{`)
       before writing anything about patients: from Nov/2025 it is missing on most AR rows
       (95% in Aug/2026), on 2–22% of AQ rows (SC, 2026), on 67% of AD rows in Aug/2026
-      (rising since Apr/2024), on none in AM;
+      (rising since Apr/2024), on 96% of ATD rows in Aug/2026 (2% in 2024, 15% in Mar/2026,
+      then a jump from May/2026), on none in AM;
     - check `uv run mkdocs build --strict` (needs `uv sync --group docs`).
 6. **Check for real** with one small state-month, and paste the output in the PR:
 

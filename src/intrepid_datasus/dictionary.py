@@ -221,7 +221,7 @@ APAC_COMMON = {
     "AP_CEPPCN": "Postcode (CEP) of the patient's address.",
     "AP_UFDIF": "Patient lives in another state than the facility (0 = same, 1 = different).",
     "AP_MNDIF": "Patient lives in another municipality than the facility (0 = same, 1 = different). "
-                "Unreliable (always 1 in AM, AQ, AR and AD): compare AP_MUNPCN with AP_UFMUN instead.",
+                "Unreliable (always 1 in AM, AQ, AR, AD and ATD): compare AP_MUNPCN with AP_UFMUN instead.",
     "AP_DTINIC": "Start of the APAC's validity period (YYYYMMDD).",
     "AP_DTFIM": "End of the APAC's validity period (YYYYMMDD); up to 3 months after AP_DTINIC.",
     "AP_TPATEN": "APAC type of care (tipo de atendimento / laudo); fixed per file type.",
@@ -455,4 +455,81 @@ AD = apac("AD", {
     "AP_CIDPRI": "Main diagnosis, ICD-10 (no dot): eye (H25/H26 cataract, H35/H36 retina, H40 glaucoma), "
                  "hearing loss (H90/H91), transplanted organ (Z94x), angina (I20), mental disorders (F, "
                  "until 2012), ... Joins cid10.",
+})
+
+
+# ------------------------------------------------------------------- ATD
+# APAC de Tratamento Dialítico (chronic dialysis: haemodialysis and peritoneal dialysis), files
+# ATD<UF><YY><MM>.dbc, Aug/2014 onward; replaces AN (APAC Nefrologia, until Jul/2014). One layout:
+# the 45 shared AP_ columns, 19 ATD_ columns, then AP_NATJUR (appended last, from Jul/2016).
+# Sources: "Informe Técnico SIASUS" (Jul/2019), section 3.4.8 "Layout do arquivo de APAC de
+# tratamento dialítico: ATDUFMM.DBF" (URL above), for the columns; DATASUS "Layout da interface
+# texto do APAC e do SIA - layout interno" (Apr/2014), "parte variável 18 - laudo de Tratamento
+# Dialítico", for the code lists. Value checks, lab value formats and the AN -> ATD transition:
+# docs/tables/atd.md.
+ATD_QUANTITY_COLS = APAC_QUANTITY_COLS
+ATD_VALUE_COLS = APAC_VALUE_COLS
+
+_LAB = ("Free text, 4 characters (the layout says 'number, decimal point allowed'): '12.3' and '12,3' "
+        "are decimals, '0000' (or 0) = not measured, bare digits ('0010', '11') are ambiguous, and "
+        "'9999', 'N', '70%' also occur. Parse with TRY_CAST(REPLACE(x, ',', '.') AS DOUBLE) and keep a "
+        "plausible range: see docs/tables/atd.md.")
+
+ATD = apac("ATD", {
+    "AP_PRIPAL": "Dialysis procedure, SIGTAP 0305010xxx: 0305010107 haemodialysis (max. 3 sessions/week, ~91% "
+                 "of rows), 0305010115 haemodialysis in a patient with positive HIV/HBV/HCV serology, "
+                 "0305010166 home peritoneal dialysis follow-up (CAPD/APD, one per month), 0305010182 PD "
+                 "training, 0305010204 paediatric haemodialysis, 0305010026 intermittent PD. NULL on 90 rows "
+                 "(all with AP_TPAPAC = 4). Joins procedimentos.",
+    "AP_VL_AP": "Approved value of the APAC in this month, R$ (number, nominal) = SUM(PA_VALAPR) of its pa rows: "
+                "the sessions (the P row; PA_QTDAPR = number of sessions) plus secondary procedures (lab "
+                "tests, catheters, materials). Median ~R$ 3,300 a month for haemodialysis in 2026.",
+    "AP_TPATEN": "APAC type of care; always 10 (dialysis) in ATD.",
+    "AP_TPAPAC": "1 = initial, 2 = continuation, 3 = single (PD training only). Dialysis APACs run three "
+                 "months: about 35% of rows are 1 and 64% are 2 every year. 4 (not in the layout) on 90 rows, "
+                 "all without a procedure.",
+    "AP_MNDIF": "Patient lives in another municipality than the facility. Always 1 in ATD (wrong, as in the "
+                "other APAC types): compare AP_MUNPCN with AP_UFMUN instead.",
+    "AP_CNSPCN": "Patient's CNS, ENCODED by DATASUS (same encoding as AN and the other APAC types). Empty (NULL) "
+                 "or the placeholder '{{{{{{{{{{{{{{{' on 0% of rows until Mar/2024, ~2% until Oct/2024, 7-15% "
+                 "until Mar/2026, then 46% (May/2026), 66% (Jun), 90% (Jul) and 96% (Aug/2026): exclude both "
+                 "before counting or following patients.",
+    "AP_CIDPRI": "Main diagnosis: always '0000' in ATD (not filled). Use pa (PA_CIDPRI) for a diagnosis.",
+    "AP_CIDSEC": "Secondary diagnosis: always '0000' in ATD (not filled).",
+    "AP_CIDCAS": "Associated cause, ICD-10 (no dot), or '0000' (88% of rows since 2024; 76% in 2014). The only "
+                 "diagnosis ATD carries: N180/N188/N189 chronic kidney disease, and for 0305010115 the infection "
+                 "behind the positive serology (B182/B181 chronic hepatitis C/B, Z21/B24 HIV). Joins cid10.",
+    "ATD_CARACT": "Characteristic of the treatment: 1 = new case, 2 = continuing treatment, 3 = patient in "
+                  "transit (dialysing away from home), 4 = transfer from another facility. Not reliable as "
+                  "'incident patient': on '1' rows dialysis started a median of 8 months before (use ATD_DTPDR).",
+    "ATD_DTPDR": "Date the patient started dialysis for the first time, anywhere (YYYYMMDD). Filled except "
+                 "on the 90 rows without a procedure; a few impossible dates (e.g. 9999xxxx).",
+    "ATD_DTCLI": "Date the patient started dialysis at this facility (YYYYMMDD).",
+    "ATD_ACEVAS": "Vascular (dialysis) access: 1 = arteriovenous fistula (FAV), 2 = short-term catheter, "
+                  "3 = long-term catheter. Filled on every row, also for peritoneal dialysis (where 3 "
+                  "normally means the Tenckhoff catheter).",
+    "ATD_MAISNE": "Followed by a nephrologist for more than a year before starting dialysis: S = yes, N = no, "
+                  "I = unknown. Only required for new cases (ATD_CARACT = 1); often empty otherwise.",
+    "ATD_SITINI": "Patient's situation when dialysis started: A = outpatient, H = in hospital, I = unknown. "
+                  "Only required for new cases (ATD_CARACT = 1).",
+    "ATD_SITTRA": "Transplant situation: 1 = fit for a kidney transplant, 2 = unfit, 3 = refuses, 4 = not "
+                  "applicable (new case, less than 90 days of dialysis).",
+    "ATD_SEAPTO": "If fit for transplant (ATD_SITTRA = 1): 1 = on the waiting list (CNCDO), 2 = being "
+                  "assessed at a transplant centre, 3 = not referred, 4 = awaiting an appointment at the "
+                  "transplant centre. Empty or 0 when ATD_SITTRA is not 1 (with exceptions).",
+    "ATD_HB": "Haemoglobin, g/dL (median 10.6 in 2024-2026). " + _LAB,
+    "ATD_FOSFOR": "Serum phosphorus, mg/dL (median 4.9). " + _LAB,
+    "ATD_KTVSEM": "Kt/V (dialysis adequacy, no unit; median 1.39, which looks like a per-session value "
+                  "although the layout says weekly). Optional; mostly empty for peritoneal dialysis. " + _LAB,
+    "ATD_TRU": "Urea reduction ratio (URR), % (median 69). Optional; mostly empty for peritoneal dialysis. " + _LAB,
+    "ATD_ALBUMI": "Serum albumin, g/dL (median 3.9). Optional. " + _LAB,
+    "ATD_PTH": "Parathyroid hormone (PTH), pg/mL (median ~170-310; mostly written as a 4-digit integer, "
+               "'0624'). Optional. " + _LAB,
+    "ATD_HIV": "Anti-HIV antibodies: P = positive, N = negative (optional, may be empty).",
+    "ATD_HCV": "Anti-HCV antibodies (hepatitis C): P = positive, N = negative (optional, may be empty).",
+    "ATD_HBSAG": "HBsAg (hepatitis B surface antigen): P = positive, N = negative (optional, may be empty).",
+    "ATD_INTERC": "Patient was admitted to hospital, starting this month, to treat a clinical complication: "
+                  "S = yes, N = no, I = unknown.",
+    "ATD_SEPERI": "If on peritoneal dialysis, peritonitis was diagnosed this month: S = yes, N = no, "
+                  "I = unknown. Filled on haemodialysis rows too (ignore it there).",
 })
