@@ -9,6 +9,8 @@ views over the local Parquet store, so a table only exists once its data has bee
 | `pa_raw` | same | same, every column as text | [pa](pa.md#pa-vs-pa_raw) |
 | `pa_legacy` | `datasus fetch` (1994–2007) | one line of outpatient production, old layout | [pa_legacy](pa_legacy.md) |
 | `pa_legacy_raw` | same | same, every column as text | [pa_legacy](pa_legacy.md) |
+| `bi` | `datasus fetch -T bi` (2008 onward) | one patient appointment (BPA-I); also in `pa` | [bi](bi.md) |
+| `bi_raw` | same | same, every column as text | [bi](bi.md#bi-vs-bi_raw) |
 | `ufs` | nothing (built in) | one state | [Lookups](lookups.md#ufs) |
 | `procedimentos` | `datasus sigtap fetch` | one SIGTAP procedure code | [Lookups](lookups.md#procedimentos) |
 | `cid10` | `datasus sigtap fetch` | one ICD-10 code | [Lookups](lookups.md#cid10) |
@@ -19,7 +21,7 @@ views over the local Parquet store, so a table only exists once its data has bee
 ## SIA file types and their tables
 
 DATASUS publishes several SIA/SUS file types, each named `<CODE><UF><YY><MM>[part].dbc`
-(`PASP2605a.dbc`, `BIAC2605.dbc`, ...). Every file type you can fetch gets its own tables,
+(`PASP2605a.dbc`, `BIAC2605.dbc`, `BISP2605_1.dbc`, ...). Every file type you can fetch gets its own tables,
 named after its code in lowercase: a typed view (`pa`) and a text-only `_raw` view
 (`pa_raw`). A file type whose layout changed over time has one pair per layout; PA has two,
 `pa` (2008 onward) and `pa_legacy` (1994–2007), and the CLI picks the right one by month.
@@ -27,6 +29,7 @@ named after its code in lowercase: a typed view (`pa`) and a text-only `_raw` vi
 | Code | `--table` | File type | Tables | Page |
 |---|---|---|---|---|
 | PA | `pa` (default) | Produção Ambulatorial | `pa`, `pa_raw`, `pa_legacy`, `pa_legacy_raw` | [pa](pa.md), [pa_legacy](pa_legacy.md) |
+| BI | `bi` | BPA Individualizado | `bi`, `bi_raw` | [bi](bi.md) |
 
 Choose file types with `--table/-T` in `available`, `fetch`, `status`, `schema` and `remove`
 (`-T pa`, `-T pa,bi`, `-T all`). Without it, commands work on PA. More file types are being
@@ -50,7 +53,16 @@ pa ── PA_PROC_ID ──► procedimentos (codigo) ──► sigtap_rl_proced
  │ ── PA_CIDPRI  ──► cid10 (codigo)
  │ ── PA_CBOCOD  ──► ocupacoes (codigo)
  └─── uf         ──► ufs (uf)
+
+bi ── PROC_ID    ──► procedimentos (codigo)
+ │ ── CIDPRI     ──► cid10 (codigo)
+ │ ── CBOPROF    ──► ocupacoes (codigo)
+ │ ── uf         ──► ufs (uf)
+ └─── LEFT(MUNPAC, 2) ──► ufs (ibge)    patient's state of residence
 ```
+
+`bi` rows are the `pa` rows with `PA_DOCORIG = 'I'`: query one or the other, never both
+summed (see [bi](bi.md#how-bi-relates-to-pa-double-counting)).
 
 `pa_legacy` joins `ufs` the same way, but **not** the SIGTAP lookups: its procedure codes
 (`PA_CODPRO`) belong to the old SIA table that SIGTAP replaced in Jan/2008.
@@ -79,6 +91,7 @@ The column `_ARQUIVO_ORIGEM` records the original DATASUS file of each row
 
 - **PA layout (2008 onward):** DATASUS, *Informe Técnico SIASUS* (Jul/2019), section 2.3,
   `ftp://ftp.datasus.gov.br/dissemin/publicos/SIASUS/200801_/Doc/Informe_Tecnico_SIASUS_2019_07.pdf`.
+- **BI layout:** same Informe Técnico, section 5.2 (*Layout do arquivo de BPA-I*).
 - **SIGTAP:** the layout files (`*_layout.txt`) shipped inside each
   `TabelaUnificada_YYYYMM_v*.zip` at `ftp://ftp2.datasus.gov.br/public/sistemas/tup/downloads`,
   and the online browser at [sigtap.datasus.gov.br](http://sigtap.datasus.gov.br/).

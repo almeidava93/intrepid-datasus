@@ -23,11 +23,16 @@ Each era is one FTP folder, one local folder and one pair of DuckDB views:
 | `quantity_cols`, `value_cols` | text columns cast to `BIGINT` / `DOUBLE` in the typed view | `PA_QTDAPR`, `PA_VALAPR` |
 
 Everything else is derived from the registry: the filename pattern
-(`<CODE><UF><YY><MM>[part].dbc`, matched per code so `AM` never claims `AMP` files and `AB`
+(`<CODE><UF><YY><MM>[part].dbc`, where `part` is a letter, `PASP2605a.dbc`, or `_<n>`,
+`BISP2605_1.dbc`; matched per code so `AM` never claims `AMP` files and `AB`
 never claims `ABO` files), which FTP folders to list (each folder is listed once, whatever
 the number of file types), the `--table/-T` choices, the local layout, the manifest keys
 (`<CODE>/<UF>/<YYYYMM>`, e.g. `PA/SP/202605`) and the views. Store, fetch and query code
 contain no per-type logic; adding a file type should not need changes there.
+
+`catalog.group` turns files into one partition per type, state and month. If the FTP has
+both a whole file and split parts for the same month (BI SP/MG/RJ 2023-05 to 2024-02), it
+keeps only the parts, which are the newer publication; keeping both would double the month.
 
 The manifest used to key PA entries as `SP/202605`; `Store.manifest()` reads such keys as
 PA, and the next write saves them in the new form.
@@ -36,12 +41,21 @@ PA, and the next write saves them in the new form.
 
 Every file type sub-issue of #3 follows these steps. `BI` is used as the example.
 
-1. **Check the FTP.** Download one small file, e.g. `BIAC2605.dbc` from
-   `ftp.datasus.gov.br/dissemin/publicos/SIASUS/200801_/Dados`, and read its columns with
-   `convert.read_dbf_header` (after decompressing, as `convert.dbc_to_parquet` does). Do
-   the same for an early month and a few years in between: if the columns change, the
-   file type needs one era per layout. Note the first and last month on the FTP and whether
-   large states are split (`a`, `b`, ...).
+1. **Check the FTP.** List the folder and look at **every** name starting with your code,
+   not only the ones the current pattern accepts: BI splits states as `_1`, `_2`, `_3`
+   (PA uses `a`, `b`, ...), and some months have a whole file *and* parts. If you find a
+   new naming scheme, extend the regex in `FileType.__post_init__` and add tests. Note the
+   first and last month, gaps, and the real total size (the sizes in issue #3 missed BI's
+   `_N` files: 146.6 GB listed, 188 GB real).
+
+   You don't need to download files to see their columns: a `.dbc` starts with the
+   uncompressed DBF header (record count at bytes 4–8, then 32-byte field descriptors up
+   to `0x0D`). Read the first 4 KB of a file with `ftp.transfercmd("RETR ...")`, close the
+   data socket *and* the control connection (`ftp.abort()` hangs on this server), and
+   parse it. Do this for one file per year (and the month where columns change): if the
+   columns change, the file type needs one era per layout. A column only *added* over time
+   (BI's `NAT_JUR`) needs no new era; the views read with `union_by_name` and older months
+   show `NULL`. The same trick gives row counts, e.g. to compare a whole file with its parts.
 2. **Dictionary** (`dictionary.py`): add `BI = {**PARTITION, "COL": "description", ...}`
    with **every** column of the file, plus `BI_QUANTITY_COLS` and `BI_VALUE_COLS` (columns
    to cast; leave empty tuples if none). Cite the official layout document in a comment
@@ -68,13 +82,17 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
     - Do not change `DEFAULT_TABLES`: PA stays the default.
 4. **Tests** (`tests/test_registry.py`, no network):
     - a `test_<code>_registered` test checking the code, eras (`key`, `ftp_dir`, months),
-      and that a few real file names parse (`BIAC2605.dbc`, a split one like `BISP2605b.dbc`)
+      and that a few real file names parse (`BIAC2605.dbc`, a split one like `BISP2605_1.dbc`)
       while names of other types do not;
     - a conversion test: write a tiny DBF with the type's real column names using the
       `make_dbf` fixture from `tests/conftest.py`, convert it with `convert.dbf_to_parquet`,
       publish it into a `Store` and check the `<code>` view casts the quantity/value columns;
+    - a test that the dictionary has exactly the file's columns (plus `PARTITION`), so
+      `datasus schema` never shows a column without a description;
     - keep `uv run pytest` green. The `FAKE` registry in `test_registry.py` may already
-      use your code; it shadows the real entry only inside those tests, so leave it.
+      use your code; it shadows the real entry only inside those tests, so leave it, and
+      don't use its `registry` fixture in tests of the real entry. `tests/test_bi.py` is
+      a complete example.
 5. **Docs:**
     - a page `docs/tables/<code>.md` (copy the structure of `pa.md`): what the table is,
       what one row is, period covered, download size, every column with meaning and codes,
@@ -84,6 +102,8 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
     - in `docs/tables/index.md`, add a row to the *SIA file types* table and to the top
       table, and extend the join diagram if the table joins the lookups;
     - add the views to the table list in `docs/querying.md` and `README.md`;
+    - for overlap with PA, fetch the same state-month of PA and compare row counts and
+      `SUM`s against `pa WHERE PA_DOCORIG = ...` (BI equals `PA_DOCORIG = 'I'` exactly);
     - check `uv run mkdocs build --strict` (needs `uv sync --group docs`).
 6. **Check for real** with one small state-month, and paste the output in the PR:
 
@@ -95,7 +115,11 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
     uv run datasus -d /tmp/check status -T all
     ```
 
-7. **PR** against `main` with `Closes #<sub-issue>` in the body, saying which state-month
+    For a big type, also convert one large file (the biggest SP part) and record download
+    and conversion time, peak RAM, temporary DBF size and the Parquet ratio. BI: a 172 MB
+    part with 4.7 M rows took 1.9 GB of RAM and a 1.2 GB temporary DBF.
+
+7. **PR** against `main` (or the previous sub-issue's branch while its PR is open) with `Closes #<sub-issue>` in the body, saying which state-month
    was checked.
 
 ## Data source

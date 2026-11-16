@@ -9,8 +9,8 @@ Built into the package, no download needed. 27 rows.
 
 | Column | Type | Meaning |
 |---|---|---|
-| `uf` | text | State abbreviation (`SP`). Joins the `uf` partition of `pa` / `pa_legacy`. |
-| `ibge` | text | 2-digit IBGE state code (`35`). Matches the first two digits of `PA_UFMUN`, `PA_MUNPCN`, `PA_GESTAO`. |
+| `uf` | text | State abbreviation (`SP`). Joins the `uf` partition of `pa`, `pa_legacy`, `bi`. |
+| `ibge` | text | 2-digit IBGE state code (`35`). Matches the first two digits of `PA_UFMUN`, `PA_MUNPCN`, `PA_GESTAO` (and `UFMUN`, `MUNPAC`, `GESTAO` in `bi`). |
 | `nome` | text | State name (`São Paulo`). |
 | `regiao` | text | Region: `Norte`, `Nordeste`, `Sudeste`, `Sul`, `Centro-Oeste`. |
 
