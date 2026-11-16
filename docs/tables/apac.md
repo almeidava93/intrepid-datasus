@@ -15,7 +15,7 @@ month in one file type per kind of request form (*laudo*):
 | AN | Nephrology: dialysis, Jan/2008 to Jul/2014 (late bills to Oct/2014; replaced by ATD, see [the transition](atd.md#from-an-to-atd-2014)) | [`an`](an.md) | supported |
 | AB | Bariatric surgery follow-up (*cirurgia bariátrica*), Jan/2008 to Apr/2017 plus Jan–Jul/2025; from 2014 a subset of ABO, see [AB and ABO](ab.md#ab-and-abo) | [`ab`](ab.md) | supported |
 | ABO | Post-bariatric surgery follow-up, Jan/2014 onward: the same APACs as AB, more states, new laudo in its own columns; use it instead of AB from 2014, see [AB and ABO](abo.md#ab-and-abo) | [`abo`](abo.md) | supported |
-| ACF | Arteriovenous fistula creation | | planned |
+| ACF | Creation of an arteriovenous fistula for haemodialysis (procedure `0418010030`), Aug/2014 onward; before that in AD. Grafts and catheters for dialysis are in AD, see [ACF, dialysis and AD](acf.md#acf-dialysis-and-ad) | [`acf`](acf.md) | supported |
 | AMP | Multiprofessional follow-up | | planned |
 
 Files are named `<CODE><UF><YY><MM>.dbc` (`AMSP2605.dbc`, `ATDSP2605.dbc`). Careful when
@@ -160,7 +160,7 @@ files and can differ slightly between types.
 | `AP_UFNACIO` | 3 | Nationality code. | `010` = Brazilian. |
 | `AP_CEPPCN` | 8 | Postcode (CEP) of the patient. | |
 | `AP_UFDIF` | 2 | Patient's state differs from the facility's: `0` same, `1` different. | |
-| `AP_MNDIF` | 2 | Patient's municipality differs from the facility's: `0` same, `1` different. | **Always `1` in AM, AQ, AR, AD, ATD, AN, AB and ABO** even when they are equal; compare `AP_MUNPCN` with `AP_UFMUN` instead. |
+| `AP_MNDIF` | 2 | Patient's municipality differs from the facility's: `0` same, `1` different. | **Always `1` in AM, AQ, AR, AD, ATD, AN, AB, ABO and ACF** even when they are equal; compare `AP_MUNPCN` with `AP_UFMUN` instead. |
 
 ### Diagnosis
 
@@ -179,7 +179,8 @@ Jul/2016, in every APAC type then published (AM, AQ, AR, AD, AN, AB; and BI's `N
 from Jan/2021). Header checks in Nov/2026 found the 46 `AP_` columns above in AM, AQ, AR, AD, ATD,
 ACF, AMP and AB (AN, which ended in 2014, has all but `AP_NATJUR`, except in Dec/2011). ABO has them all,
 but six under other names (`AP_TPPRE`, `AP_TPATEND`, `AP_DTOOCOR`, `AP_APACAN`, `CO_CIDPRIM`, `CO_CIDSEC`;
-see [abo](abo.md#shared-columns-with-other-names)), and its `AP_NATJUR` is in the Oct/2014 files and from Jul/2016.
+see [abo](abo.md#shared-columns-with-other-names)), and its `AP_NATJUR` is in the Oct/2014 files and from Jul/2016,
+as in ACF (the 45 others under their usual names, see [acf](acf.md#known-quirks-and-layout-changes)).
 A type's own columns can also change meaning without a change of header: AB's `AB_` columns hold
 the old bariatric laudo until Mar/2013 and the new one, cut at the old positions, from Apr/2013
 (see [ab](ab.md#two-laudos-in-one-layout)).

@@ -86,8 +86,9 @@ selects exactly the `atd` rows. `PA_TPFIN` is always `04` (FAEC) on them.
 The secondary procedures (`S` rows) of a dialysis APAC are only in `pa`: the monthly and
 quarterly lab tests (`0202…`: urea, creatinine, potassium, haemoglobin, phosphorus, PTH,
 serology, ...), extra sessions (`0305010093`), dialysis materials (`070210…`) and, in some
-months, a catheter implant (`0418010064`). Vascular access *surgery* (fistula creation,
-`041801003x`) is not in ATD.
+months, a catheter implant (`0418010064`). Vascular access *surgery* is not in ATD: fistula creation
+(`0418010030`) is in [ACF](acf.md), with the same patient ID (see
+[ACF, dialysis and AD](acf.md#acf-dialysis-and-ad)); grafts and long-term catheters are in AD.
 
 | You want | Use |
 |---|---|
