@@ -25,6 +25,8 @@ views over the local Parquet store, so a table only exists once its data has bee
 | `an_raw` | same | same, every column as text | [an](an.md#an-vs-an_raw) |
 | `ps` | `datasus fetch -T ps` (Nov/2012 onward) | one action line of a CAPS patient's monthly RAAS; also in `pa` | [ps](ps.md), [RAAS](raas.md) |
 | `ps_raw` | same | same, every column as text | [ps](ps.md#ps-vs-ps_raw) |
+| `sad` | `datasus fetch -T sad` (Apr/2012 to Oct/2018) | one action line of a home-care patient's monthly RAAS; also in `pa` | [sad](sad.md), [RAAS](raas.md) |
+| `sad_raw` | same | same, every column as text | [sad](sad.md#sad-vs-sad_raw) |
 | `ufs` | nothing (built in) | one state | [Lookups](lookups.md#ufs) |
 | `procedimentos` | `datasus sigtap fetch` | one SIGTAP procedure code | [Lookups](lookups.md#procedimentos) |
 | `cid10` | `datasus sigtap fetch` | one ICD-10 code | [Lookups](lookups.md#cid10) |
@@ -51,10 +53,11 @@ named after its code in lowercase: a typed view (`pa`) and a text-only `_raw` vi
 | ATD | `atd` | APAC Tratamento Dialítico | `atd`, `atd_raw` | [atd](atd.md) |
 | AN | `an` | APAC Nefrologia (2008 to Jul/2014) | `an`, `an_raw` | [an](an.md) |
 | PS | `ps` | RAAS Psicossocial (CAPS, Nov/2012 onward) | `ps`, `ps_raw` | [ps](ps.md) |
+| SAD | `sad` | RAAS Atenção Domiciliar (home care, Apr/2012 to Oct/2018) | `sad`, `sad_raw` | [sad](sad.md) |
 
 AM, AQ, AR, AD, ATD and AN are the first of the APAC file types (authorisations for high-cost
 treatments: AM, AQ, AR, AD, ATD, AN, ...). What an APAC is, how its months continue and the `AP_` columns they all
-share are described once, on the [APAC file types](apac.md) page. PS is the first RAAS file type
+share are described once, on the [APAC file types](apac.md) page. PS and SAD are the RAAS file types
 (records of continuous care: CAPS, home care), described on [RAAS file types](raas.md).
 
 Choose file types with `--table/-T` in `available`, `fetch`, `status`, `schema` and `remove`
@@ -131,6 +134,12 @@ ps ── PA_PROC_ID ──► procedimentos (codigo)    CAPS action (030108...)
  │ ── LEFT(MUNPAC, 2) ──► ufs (ibge)
  │ ── CNS_PAC    ──► ad (AP_CNSPCN)    same patient's CAPS APACs until Dec/2012
  └─── CNES_EXEC, DT_ATEND, PA_PROC_ID ──► pa (PA_CODUNI, PA_CMP, PA_PROC_ID, PA_DOCORIG = 'B'; totals only)
+
+sad ── PA_PROC_ID ──► procedimentos (codigo)    home-care action (0301050..., 0301010137, ...)
+ │ ── CIDPRI, PA_CID ──► cid10 (codigo)
+ │ ── uf         ──► ufs (uf)
+ │ ── LEFT(MUNPAC, 2) ──► ufs (ibge)
+ └─── CNES_EXEC, DT_ATEND, PA_PROC_ID ──► pa (PA_CODUNI, PA_CMP, PA_PROC_ID, PA_DOCORIG = 'A'; totals only)
 ```
 
 `bi` rows are the `pa` rows with `PA_DOCORIG = 'I'`: query one or the other, never both
@@ -141,7 +150,8 @@ rows with `PA_DOCORIG = 'P'` (see [am](am.md#how-am-relates-to-pa-double-countin
 [ad](ad.md#how-ad-relates-to-pa-double-counting)), `atd` rows (see
 [atd](atd.md#how-atd-relates-to-pa-double-counting)) and `an` rows (see
 [an](an.md#how-an-relates-to-pa-double-counting)). `ps` rows are the `pa` rows with
-`PA_DOCORIG = 'B'` (see [ps](ps.md#how-ps-relates-to-pa-double-counting)).
+`PA_DOCORIG = 'B'` (see [ps](ps.md#how-ps-relates-to-pa-double-counting)), and `sad` rows the `pa`
+rows with `PA_DOCORIG = 'A'` (see [sad](sad.md#how-sad-relates-to-pa-double-counting)).
 
 `pa_legacy` joins `ufs` the same way, but **not** the SIGTAP lookups: its procedure codes
 (`PA_CODPRO`) belong to the old SIA table that SIGTAP replaced in Jan/2008.
@@ -172,7 +182,7 @@ The column `_ARQUIVO_ORIGEM` records the original DATASUS file of each row
   `ftp://ftp.datasus.gov.br/dissemin/publicos/SIASUS/200801_/Doc/Informe_Tecnico_SIASUS_2019_07.pdf`.
 - **BI layout:** same Informe Técnico, section 5.2 (*Layout do arquivo de BPA-I*).
 - **APAC layouts (AM, ...):** same Informe Técnico, section 3.4 (*Layout dos arquivos de APAC*;
-  AD is 3.4.1, AM 3.4.2, AQ 3.4.4, AR 3.4.5, ATD 3.4.8, AN 3.4.3). RAAS layouts (PS, SAD): section 4 (PS 4.2). ATD and AN code lists: DATASUS *Layout da interface texto do APAC e do SIA*
+  AD is 3.4.1, AM 3.4.2, AQ 3.4.4, AR 3.4.5, ATD 3.4.8, AN 3.4.3). RAAS layouts (PS, SAD): section 4 (SAD 4.1, PS 4.2). ATD and AN code lists: DATASUS *Layout da interface texto do APAC e do SIA*
   (Apr/2014), part 18 (ATD) and part 09 (AN).
 - **SIGTAP:** the layout files (`*_layout.txt`) shipped inside each
   `TabelaUnificada_YYYYMM_v*.zip` at `ftp://ftp2.datasus.gov.br/public/sistemas/tup/downloads`,

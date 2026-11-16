@@ -105,7 +105,11 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
    Some fields are numeric (`N`, e.g. APAC's `AP_VL_AP`); the converter reads every field as
    text anyway, so this needs no special handling. Field names can be padded with spaces
    instead of `\0` (PS: `'TIPPRE  '`): the converter strips them, so the column is `TIPPRE`.
-   Look at the raw names (`repr`) when you probe. Probing every month of one state also
+   Look at the raw names (`repr`) when you probe. For a type with few files, probe **every**
+   file (SAD: 1,088 headers in ~8 min with 6 threads) and group them by column set: SAD has
+   three (43 columns, + `CO_INE` from Jan/2015, + `NAT_JUR` in Oct/2014 and from Jul/2016).
+   Also sum the header row counts by year: SAD files go on until Oct/2018, but rows fall from
+   1.55 M (2015) to 5 k (2017), so the real series ends in mid-2016. Probing every month of one state also
    shows months with *no* file (PS: AC has 159 of 166 months, AP 150): there, a missing
    state-month means no production, not a failed download.
 2. **Dictionary** (`dictionary.py`): add `BI = {**PARTITION, "COL": "description", ...}`
@@ -168,7 +172,8 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       the one for a type that starts later than 2008 (it checks `era_for` before its first month);
       `tests/test_an.py` is the one for a discontinued type (real last month, one odd month
       with an extra column); `tests/test_ps.py` is the one for RAAS types (shared RAAS
-      columns, a space-padded field name, a column present in one odd month and again later).
+      columns, a space-padded field name, a column present in one odd month and again later),
+      and `tests/test_sad.py` the one for a discontinued RAAS type with three column sets.
 5. **Docs:**
     - a page `docs/tables/<code>.md` (copy the structure of `bi.md`, or `am.md` for an APAC
       type: link to [APAC file types](tables/apac.md) for the `AP_` columns and only list
@@ -209,6 +214,8 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       then a jump from May/2026), on none in AM or AN (2008–2014);
     - don't trust a shared column to behave as in another type: `AP_CIDPRI` is always
       `0000` in ATD but filled in AN, and `AP_TPATEN` is a different fixed code in each type.
+      SAD's `TPUPS` holds the provider type (`pa`'s `PA_TIPPRE`), not the facility type it holds
+      in PS: compare a shared column with its `pa` counterpart on the overlap months.
       Count the values of each shared column once on the full history;
     - check `uv run mkdocs build --strict` (needs `uv sync --group docs`).
 6. **Check for real** with one small state-month, and paste the output in the PR:
@@ -226,7 +233,8 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
     part with 4.7 M rows took 1.9 GB of RAM and a 1.2 GB temporary DBF. AM: the largest
     file (82 MB, 1.37 M rows) took 28 s and about 1.2 GB of RAM; AQ's (10.5 MB, 102 k
     rows), 7 s and 0.4 GB. For a type with many tiny files the Parquet ratio is high,
-    because each file has about 20 KB of overhead (AR: 0.81 over its 5,491 files), and
+    because each file has about 20 KB of overhead (AR: 0.81 over its 5,491 files; SAD: 0.89,
+    files of ~49 KB), and
     small files can take up to 30 s each on the FTP (AR, every month: about 35 min). To fetch
     a whole history faster, run two or three fetches of different year ranges into separate
     stores (`-d`) at once, then move the `data/<key>/competencia=*` folders into one store and

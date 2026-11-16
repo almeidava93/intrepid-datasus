@@ -742,3 +742,69 @@ PS = raas("PS", {
                "executive body 13%, 1023 = state / Federal District executive body, 3999 = private association, ...). From Jul/2016; NULL before, except in the "
                "Oct/2014 files (the column was there that month only).",
 })
+
+
+# ------------------------------------------------------------------- SAD
+# RAAS Atenção Domiciliar (home care by Melhor em Casa teams: EMAD, EMAP), files
+# SAD<UF><YY><MM>.dbc, Apr/2012 to Oct/2018 (discontinued; in practice the teams stopped using
+# RAAS-AD between Aug/2015 and Jun/2016, when their records moved to e-SUS AD / SISAB, Portaria
+# GM/MS 1.653/2015). One layout with three column sets (every one of the 1,088 files probed): the
+# RAAS columns plus PA_EQUIPE, PA_TP_EQP, PA_CID (43) until Dec/2014; CO_INE added (44) from
+# Jan/2015; NAT_JUR after it (45) in the Oct/2014 files and from Jul/2016. Source: "Informe Técnico
+# SIASUS" (Jul/2019), section 4.1 "Layout do arquivo de Atenção Domiciliar: SAD*.DBF" (URL above;
+# it lists neither CO_INE nor NAT_JUR, and calls PA_CLASS_S "PA_CLAS_S" and DESTINOPAC
+# "DESTINO_PAC"). SAD rows are the pa rows with PA_DOCORIG = 'A' (R$ 0): never sum sad and pa
+# together. Values below were checked on the whole history (3.52 M rows). Details: docs/tables/sad.md.
+SAD_QUANTITY_COLS = RAAS_QUANTITY_COLS
+SAD_VALUE_COLS = RAAS_VALUE_COLS
+
+SAD = raas("SAD", {
+    "TPUPS": "In SAD this holds the PROVIDER TYPE (tipo de prestador, = pa's PA_TIPPRE), not the facility "
+             "type: 50 (77% of rows), 00 (12%), 40 (8%), 30, 61. The facility type is in pa (PA_TPUPS: "
+             "02 = health centre, 05 = general hospital, ...).",
+    "MOT_COB": "Reason for exit or continuation (motivo de saída/permanência), APAC codes: 21 = continues "
+               "(88% of rows), 28 = continues (other reasons), 11 = discharge cured, 12 = improved, 18 = other "
+               "discharge, 31 = transfer, 41 = death (1.7%), 51 = closed administratively (0.9%; almost always with "
+               "DESTINOPAC = '00').",
+    "CIDPRI": "Main diagnosis of the episode, ICD-10 (no dot, 3 or 4 characters). NULL on 10% of rows (13% of "
+              "patient-months). Mostly stroke and its sequelae (I694, I64, I69), hypertension (I10), pressure "
+              "ulcers (L89), Alzheimer's (G30), COPD (J44), femur fracture (S72). Joins cid10.",
+    "ORIGEM_PAC": "Where the patient came from (origem do usuário), set in the first month and copied forward: "
+                  "02 (55% of rows), 03 (23%), 05 (15%), 01 (6%), 04 (0.7%). The code list is not in the "
+                  "Informe nor in Portaria SAS 276/2012.",
+    "DESTINOPAC": "Destination of the patient (destino do usuário): 00 = stays in care (89% of rows); the "
+                  "others close the episode and pair with MOT_COB: 01 with 11 (discharge cured), 02 with 12 "
+                  "(improved), 03 with 18 (other discharge), 04 and 05 with 31 (transfer), 06 with 41 (death). "
+                  "Code names are not in the Informe.",
+    "PA_PROC_ID": "Action (ação realizada), SIGTAP code. 69 codes; most rows: 0301010137 home consultation "
+                  "(19%), 0301050023 home care by a multiprofessional team (13%), 0301050058 home care by a "
+                  "mid-level professional (13%), 0101030010 / 0301050147 / 0101030029 home visits, 0401010023 "
+                  "and 0401010015 wound dressing (grade I, retired after May/2015; grade II), 0214010015 capillary glucose, physiotherapy (0302...), "
+                  "0301050082 parenteral antibiotics, 0301100144 oxygen therapy. Joins procedimentos.",
+    "PA_QTDAPR": "Quantity approved (number). Sum this, don't count rows. Equal to PA_QTDPRO on all but 19 "
+                 "rows; 0 on 0.7% (and on every row of PI from 2017). Same as PA_QTDAPR.",
+    "PA_SRV": "Specialised service: 113 (home care, atenção domiciliar) on all but 9 rows (126).",
+    "PA_CLASS_S": "Service classification (with PA_SRV = 113): 003 on 93% of rows, 004 on 7% (mostly EMAP "
+                  "rows), a few 001 / 000. (The Informe calls the column PA_CLAS_S.)",
+    "INICIO": "First day in care in this month (YYYYMMDD; the Informe says DDMMAAAA, wrong). Filled on the one "
+              "row per episode-month with QTDPCN = '1' (13.6% of rows); NULL on the others.",
+    "QTDATE": "'1' on one row per episode-month (the episode's summary line), '0' on the other rows. Same as "
+              "QTDPCN except on 951 rows.",
+    "QTDPCN": "'1' on one row per episode-month, '0' on the others: SUM(QTDPCN::INT) = number of patient-"
+              "months (RAAS). 0.2% of episode-months have no such row; none has two.",
+    "PA_EQUIPE": "Home-care team code (código da equipe, 12 digits, CNES; the Informe: 'only for the RAAS "
+                 "instrument'). Filled on every row until Jul/2015, then replaced by CO_INE: NULL on 69% of "
+                 "rows in Aug/2015, on 92-100% from Sep/2015.",
+    "PA_TP_EQP": "Home-care team type (CNES team type): 22 = EMAD (multiprofessional home-care team; 56% of "
+                 "rows), 23 = EMAP (multiprofessional support team; 10%), 46 = EMAD type II (from 2013, 2%). "
+                 "NULL on 32% of rows: 2-52% a month in 2012, 9-36% in 2013, 8-18% from 2014 to Jul/2015, then on "
+                 "almost all (like PA_EQUIPE).",
+    "PA_CID": "ICD-10 of the action (CID do procedimento), no dot. Filled on 39% of rows (the procedures that "
+              "require one); differs from CIDPRI on 16% of those. Joins cid10.",
+    "CO_INE": "Team identifier (INE, CNES national team code, 10 digits), the successor of PA_EQUIPE. Column "
+              "from Jan/2015 (and in the Oct/2014 files, empty there); filled from Aug/2015 (on 80% of rows), on "
+              "97-100% from Sep/2015. NULL before.",
+    "NAT_JUR": "Facility legal nature (IBGE CONCLA code: 1031 = municipal executive body, 1201 = public fund "
+               "(municipal health fund), 1023 = state executive body, 1244 = municipality, ...). Only in the Oct/2014 files "
+               "(filled on every row) and from Jul/2016 (the 9,079 rows of Jul/2016-Oct/2018); NULL otherwise.",
+})

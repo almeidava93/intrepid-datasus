@@ -172,7 +172,12 @@ PS = FileType("PS", "RAAS Psicossocial", (
         quantity_cols=dictionary.PS_QUANTITY_COLS, value_cols=dictionary.PS_VALUE_COLS),
 ), parquet_ratio=0.62)  # all 4,421 files: 2.05 GB Parquet / 3.31 GB .dbc
 
-REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA, BI, AM, AQ, AR, AD, ATD, AN, PS)}
+SAD = FileType("SAD", "RAAS Atenção Domiciliar", (  # discontinued: last file Oct/2018
+    Era("sad", FTP_CURRENT_DIR, 201204, 201810, dictionary.SAD,
+        quantity_cols=dictionary.SAD_QUANTITY_COLS, value_cols=dictionary.SAD_VALUE_COLS),
+), parquet_ratio=0.89)  # all 1,088 files: 47.3 MB Parquet / 53.4 MB .dbc (tiny files)
+
+REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA, BI, AM, AQ, AR, AD, ATD, AN, PS, SAD)}
 DEFAULT_TABLES = ("PA",)  # what the CLI uses when --table is not given
 
 

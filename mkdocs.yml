@@ -47,6 +47,7 @@ nav:
       - an (APAC Nefrologia): tables/an.md
       - RAAS file types: tables/raas.md
       - ps (RAAS Psicossocial): tables/ps.md
+      - sad (RAAS Atenção Domiciliar): tables/sad.md
       - Lookup tables: tables/lookups.md
       - SIGTAP tables: tables/sigtap.md
   - API reference:

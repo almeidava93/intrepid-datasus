@@ -10,7 +10,7 @@ DATASUS publishes one file type per RAAS:
 | Code | RAAS | Table | Status |
 |---|---|---|---|
 | PS | Psychosocial care (*Atenção Psicossocial*): CAPS, from Nov/2012 | [`ps`](ps.md) | supported |
-| SAD | Home care (*Atenção Domiciliar*), Apr/2012 to Oct/2018 | | planned |
+| SAD | Home care (*Atenção Domiciliar*): Melhor em Casa teams, Apr/2012 to Oct/2018 (in practice to Jun/2016) | [`sad`](sad.md) | supported |
 
 Files are named `<CODE><UF><YY><MM>.dbc` (`PSSP2605.dbc`, `SADSP1801.dbc`). States with no
 RAAS production in a month have no file that month (PS: 4,421 files over 166 months, not
@@ -63,7 +63,7 @@ In `datasus` they are one dictionary, `dictionary.RAAS_COMMON`, used by
 | Type | Own columns |
 |---|---|
 | PS | `TIPPRE`, `SIT_RUA`, `TP_DROGA`, `LOC_REALIZ` |
-| SAD | `PA_EQUIPE`, `PA_TP_EQP`, `PA_CID` (team, team type, diagnosis of the action) |
+| SAD | `PA_EQUIPE`, `PA_TP_EQP`, `PA_CID` (team, team type, diagnosis of the action), `CO_INE` (team INE, from Jan/2015) |
 
 | Column | Size | Official description (Informe Técnico SIASUS, Jul/2019, section 4) |
 |---|---|---|
@@ -71,7 +71,7 @@ In `datasus` they are one dictionary, `dictionary.RAAS_COMMON`, used by
 | `GESTAO` | 6 | State + municipality of the manager, or `UF0000` under state management. |
 | `CONDIC` | 2 | Type of management the state or municipality is qualified for. |
 | `UFMUN` | 6 | State + municipality of the **facility**. |
-| `TPUPS` | 2 | Facility type (CNES). |
+| `TPUPS` | 2 | Facility type (CNES). In SAD it holds the provider type instead (`PA_TIPPRE` of `pa`). |
 | `MN_IND` | 1 | Facility maintained (*mantido*) / individual. |
 | `CNPJCPF` | 14 | CNPJ of the facility. |
 | `CNPJMNT` | 14 | CNPJ of the maintaining body, or zeros. |
@@ -108,9 +108,10 @@ In `datasus` they are one dictionary, `dictionary.RAAS_COMMON`, used by
 | `QTDATE` | 4 | Number of care contacts (*quantidade de atendimentos*). |
 | `QTDPCN` | 4 | Number of patients. |
 
-Plus `NAT_JUR` (legal nature, 4), appended last from Jul/2016 (and, in PS, in the Oct/2014
-files only).
+Plus `NAT_JUR` (legal nature, 4), appended last from Jul/2016 and in the Oct/2014 files
+(both PS and SAD; SAD puts its `CO_INE` before it).
 
 What each column holds in practice differs from the official text in several places (the
 dates are `YYYYMMDD`, not `DDMMAAAA`; `INICIO`…`QTDPCN` are only filled on some
-procedures): see the page of each type, [ps](ps.md#what-the-columns-hold).
+procedures): see the page of each type, [ps](ps.md#what-the-columns-hold) and
+[sad](sad.md#what-the-columns-hold).
