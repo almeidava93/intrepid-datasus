@@ -88,6 +88,33 @@ markdown_extensions:
 
 plugins:
   - search
+  - redirects:
+      redirect_maps:
+        fetching.md: guide/fetching.md
+        querying.md: guide/querying.md
+        data-notes.md: databases/sia/data-notes.md
+        development.md: contributing/development.md
+        sigtap.md: lookups/sigtap.md
+        tables/index.md: databases/sia/index.md
+        tables/lookups.md: lookups/index.md
+        tables/sigtap.md: lookups/sigtap.md
+        tables/ab.md: databases/sia/ab.md
+        tables/abo.md: databases/sia/abo.md
+        tables/acf.md: databases/sia/acf.md
+        tables/ad.md: databases/sia/ad.md
+        tables/am.md: databases/sia/am.md
+        tables/amp.md: databases/sia/amp.md
+        tables/an.md: databases/sia/an.md
+        tables/apac.md: databases/sia/apac.md
+        tables/aq.md: databases/sia/aq.md
+        tables/ar.md: databases/sia/ar.md
+        tables/atd.md: databases/sia/atd.md
+        tables/bi.md: databases/sia/bi.md
+        tables/pa.md: databases/sia/pa.md
+        tables/pa_legacy.md: databases/sia/pa_legacy.md
+        tables/ps.md: databases/sia/ps.md
+        tables/raas.md: databases/sia/raas.md
+        tables/sad.md: databases/sia/sad.md
   - mkdocstrings:
       handlers:
         python:
