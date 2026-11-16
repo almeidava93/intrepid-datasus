@@ -123,7 +123,7 @@ class FileType:
 
 
 # ------------------------------------------------------------------ registry
-# One entry per SIA file type. To add one, see docs/development.md
+# One entry per SIA file type. To add one, see docs/contributing/development.md
 # ("Adding a new SIA file type").
 PA = FileType("PA", "Produção Ambulatorial", (
     Era("pa_legacy", FTP_LEGACY_DIR, 199407, 200712, dictionary.PA_LEGACY,

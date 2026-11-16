@@ -8,8 +8,19 @@ imports **every table in the zip**, all columns as text.
 
 ```bash
 uv run datasus sigtap fetch                       # latest version
-uv run datasus sigtap fetch --from 2008 --yearly  # one version per year
+uv run datasus sigtap fetch --from 2008 --yearly  # one per year: names for retired codes too
+uv run datasus sigtap search teleconsulta         # find codes by name (accents ignored) or code prefix
+uv run datasus sigtap available                   # versions on the FTP
 ```
+
+The friendly lookups [`procedimentos`](index.md#procedimentos), [`cid10`](index.md#cid10)
+and [`ocupacoes`](index.md#ocupacoes) are built from these tables; start with them. For
+each code they keep the most recent description from the versions you fetched, plus
+`primeira_versao` / `ultima_versao` (first/last version it appears in) and `ativo`. With
+`--yearly`, those dates are only precise to the year.
+
+SIGTAP starts in Jan/2008: procedure codes in SIA's `pa_legacy` (1994–2007) belong to the
+old SIA table and are not in SIGTAP.
 
 ## Naming: two views per table
 
@@ -32,7 +43,7 @@ Money columns (`VL_SA`, `VL_SH`, `VL_SP`) are **integers in centavos** — divid
 
 | View | Key | What it lists |
 |---|---|---|
-| `sigtap_procedimento` | `CO_PROCEDIMENTO` | Procedures: name, complexity, sex, age limits, values, funding. Friendly version: [`procedimentos`](lookups.md#procedimentos). |
+| `sigtap_procedimento` | `CO_PROCEDIMENTO` | Procedures: name, complexity, sex, age limits, values, funding. Friendly version: [`procedimentos`](index.md#procedimentos). |
 | `sigtap_descricao` | `CO_PROCEDIMENTO` | Long text description of each procedure (`DS_PROCEDIMENTO`). |
 | `sigtap_grupo` | `CO_GRUPO` | Procedure groups (digits 1–2). |
 | `sigtap_sub_grupo` | `CO_GRUPO`, `CO_SUB_GRUPO` | Subgroups (digits 3–4). |
@@ -41,8 +52,8 @@ Money columns (`VL_SA`, `VL_SH`, `VL_SP`) are **integers in centavos** — divid
 | `sigtap_rubrica` | `CO_RUBRICA` | Budget headings (*rubricas*), mostly within FAEC. |
 | `sigtap_registro` | `CO_REGISTRO` | Record instruments: `01` BPA-C, `02` BPA-I, `03`–`05` AIH, `06`/`07` APAC main/secondary, `08`/`09` RAAS, `10` e-SUS APS. |
 | `sigtap_modalidade` | `CO_MODALIDADE` | Care modalities (outpatient, hospital, day hospital, …). |
-| `sigtap_cid` | `CO_CID` | ICD-10 codes with sex, `TP_AGRAVO` (notifiable condition flag) and staging fields. Friendly version: [`cid10`](lookups.md#cid10). |
-| `sigtap_ocupacao` | `CO_OCUPACAO` | CBO occupations. Friendly version: [`ocupacoes`](lookups.md#ocupacoes). |
+| `sigtap_cid` | `CO_CID` | ICD-10 codes with sex, `TP_AGRAVO` (notifiable condition flag) and staging fields. Friendly version: [`cid10`](index.md#cid10). |
+| `sigtap_ocupacao` | `CO_OCUPACAO` | CBO occupations. Friendly version: [`ocupacoes`](index.md#ocupacoes). |
 | `sigtap_habilitacao` | `CO_HABILITACAO` | Facility accreditations (*habilitações*) required for some procedures. |
 | `sigtap_grupo_habilitacao` | `NU_GRUPO_HABILITACAO` | Groups of accreditations. |
 | `sigtap_servico` | `CO_SERVICO` | Specialised services (CNES). |

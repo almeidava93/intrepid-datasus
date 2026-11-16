@@ -1,6 +1,6 @@
 site_name: intrepid-datasus
 site_url: https://almeidava93.github.io/intrepid-datasus/
-site_description: Download and query DATASUS SIA/SUS outpatient production data
+site_description: Download and query DATASUS public health data (SIA/SUS and more) with SQL
 repo_url: https://github.com/almeidava93/intrepid-datasus
 repo_name: almeidava93/intrepid-datasus
 edit_uri: edit/main/docs/
@@ -12,6 +12,8 @@ theme:
     - navigation.tabs
     - navigation.sections
     - navigation.top
+    - navigation.indexes
+    - navigation.footer
     - search.suggest
   palette:
     - media: "(prefers-color-scheme: light)"
@@ -26,35 +28,46 @@ theme:
         name: Switch to light mode
 
 nav:
-  - Guide:
-      - Home: index.md
-      - Fetching data: fetching.md
-      - Querying: querying.md
-      - Procedure names (SIGTAP): sigtap.md
-      - Things to know about the data: data-notes.md
-      - Development: development.md
-  - Tables:
-      - Overview: tables/index.md
-      - pa (2008 onward): tables/pa.md
-      - pa_legacy (1994–2007): tables/pa_legacy.md
-      - bi (BPA Individualizado): tables/bi.md
-      - APAC file types: tables/apac.md
-      - am (APAC Medicamentos): tables/am.md
-      - aq (APAC Quimioterapia): tables/aq.md
-      - ar (APAC Radioterapia): tables/ar.md
-      - ad (APAC Laudos Diversos): tables/ad.md
-      - atd (APAC Tratamento Dialítico): tables/atd.md
-      - an (APAC Nefrologia): tables/an.md
-      - ab (APAC Cirurgia Bariátrica): tables/ab.md
-      - abo (APAC Acompanhamento Pós-Cirurgia Bariátrica): tables/abo.md
-      - acf (APAC Confecção de Fístula): tables/acf.md
-      - amp (APAC Acompanhamento Multiprofissional): tables/amp.md
-      - RAAS file types: tables/raas.md
-      - ps (RAAS Psicossocial): tables/ps.md
-      - sad (RAAS Atenção Domiciliar): tables/sad.md
-      - Lookup tables: tables/lookups.md
-      - SIGTAP tables: tables/sigtap.md
-  - API reference:
+  - Home: index.md
+  - Start:
+      - Getting started: getting-started.md
+      - Key concepts: concepts.md
+      - Fetching data: guide/fetching.md
+      - Querying: guide/querying.md
+  - Databases:
+      - DATASUS databases: databases/index.md
+      - SIA (outpatient):
+          - Overview: databases/sia/index.md
+          - Pitfalls: databases/sia/data-notes.md
+          - SQL cookbook: databases/sia/examples.md
+          - Joins and double counting: databases/sia/joins.md
+          - Production:
+              - pa (2008 onward): databases/sia/pa.md
+              - pa_legacy (1994–2007): databases/sia/pa_legacy.md
+              - bi (BPA Individualizado): databases/sia/bi.md
+          - APAC:
+              - APAC file types: databases/sia/apac.md
+              - am (Medicamentos): databases/sia/am.md
+              - aq (Quimioterapia): databases/sia/aq.md
+              - ar (Radioterapia): databases/sia/ar.md
+              - ad (Laudos Diversos): databases/sia/ad.md
+              - atd (Tratamento Dialítico): databases/sia/atd.md
+              - an (Nefrologia): databases/sia/an.md
+              - amp (Acompanhamento Multiprofissional): databases/sia/amp.md
+              - acf (Confecção de Fístula): databases/sia/acf.md
+              - abo (Pós-Cirurgia Bariátrica): databases/sia/abo.md
+              - ab (Cirurgia Bariátrica): databases/sia/ab.md
+          - RAAS:
+              - RAAS file types: databases/sia/raas.md
+              - ps (Psicossocial): databases/sia/ps.md
+              - sad (Atenção Domiciliar): databases/sia/sad.md
+  - Reference data:
+      - Lookup tables: lookups/index.md
+      - SIGTAP tables: lookups/sigtap.md
+  - Contributing:
+      - Adding a database: contributing/adding-a-database.md
+      - Development: contributing/development.md
+  - Python API:
       - catalog: reference/catalog.md
       - convert: reference/convert.md
       - store: reference/store.md
@@ -65,6 +78,8 @@ nav:
 
 markdown_extensions:
   - admonition
+  - attr_list
+  - md_in_html
   - tables
   - toc:
       permalink: true

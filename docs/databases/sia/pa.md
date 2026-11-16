@@ -24,7 +24,7 @@ see [bi](bi.md). Don't add `bi` to `pa`, it would count them twice.
 !!! warning "Sum quantities, don't count rows"
     One BPA-C row can represent thousands of procedures. Use `SUM(PA_QTDAPR)`.
     Consolidated (`C`) rows have no age, sex, diagnosis or residence — about half of all
-    procedures. See [Things to know about the data](../data-notes.md).
+    procedures. See [Things to know about the data](data-notes.md).
 
 ## pa vs pa_raw
 

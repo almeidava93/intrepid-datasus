@@ -193,7 +193,7 @@ BI = {
 # AP_NATJUR is not in the 2019 document for every type but is in the files from Jul/2016.
 # ABO renames six of these (AP_TPPRE, AP_TPATEND, AP_DTOOCOR, AP_APACAN, CO_CIDPRIM, CO_CIDSEC): pass them to
 # apac() with their own descriptions and drop the originals with ``without``.
-# What an APAC is (authorisation, validity, continuation, patient): docs/tables/apac.md.
+# What an APAC is (authorisation, validity, continuation, patient): docs/databases/sia/apac.md.
 APAC_QUANTITY_COLS: tuple[str, ...] = ()  # APAC files carry no quantity column
 APAC_VALUE_COLS = ("AP_VL_AP",)
 
@@ -311,7 +311,7 @@ AM = apac("AM", {
 # (empty until Feb/2022), both NULL before. Source: "Informe Técnico SIASUS" (Jul/2019),
 # section 3.4.4 "Layout do arquivo de APAC de quimioterapia: AQUFAAMM.DBF" (URL above).
 # AQ_MED01..10 are not in that document; their description comes from the data.
-# Values and fill rates: docs/tables/aq.md.
+# Values and fill rates: docs/databases/sia/aq.md.
 AQ_QUANTITY_COLS = APAC_QUANTITY_COLS
 AQ_VALUE_COLS = APAC_VALUE_COLS
 
@@ -373,7 +373,7 @@ AQ = apac("AQ", {
 # description there. The laudo fields AR_CID10 .. AR_DTINTR are those of AQ. In 2019 SIGTAP
 # replaced the per-field/per-session radiotherapy codes by one code per treatment and body
 # site (from May/2019): since then each row is a whole treatment (AP_TPAPAC = 3) and AR_NUMC*, the 2nd and
-# 3rd treated area and their dates are empty. Values and fill rates: docs/tables/ar.md.
+# 3rd treated area and their dates are empty. Values and fill rates: docs/databases/sia/ar.md.
 AR_QUANTITY_COLS = APAC_QUANTITY_COLS
 AR_VALUE_COLS = APAC_VALUE_COLS
 
@@ -439,7 +439,7 @@ AR = apac("AR", {
 # aids, cardiac catheterisation, transplant follow-up, PET-CT, wheelchairs, ...). Only the
 # shared AP_ columns, no AD_ column. One layout: AP_NATJUR added Jul/2016 (NULL before).
 # Source: "Informe Técnico SIASUS" (Jul/2019), section 3.4.1 "Layout do arquivo de laudos
-# diversos: ADUFAAMM.DBF" (URL above). Procedure mix by year: docs/tables/ad.md.
+# diversos: ADUFAAMM.DBF" (URL above). Procedure mix by year: docs/databases/sia/ad.md.
 AD_QUANTITY_COLS = APAC_QUANTITY_COLS
 AD_VALUE_COLS = APAC_VALUE_COLS
 
@@ -477,14 +477,14 @@ AD = apac("AD", {
 # tratamento dialítico: ATDUFMM.DBF" (URL above), for the columns; DATASUS "Layout da interface
 # texto do APAC e do SIA - layout interno" (Apr/2014), "parte variável 18 - laudo de Tratamento
 # Dialítico", for the code lists. Value checks, lab value formats and the AN -> ATD transition:
-# docs/tables/atd.md.
+# docs/databases/sia/atd.md.
 ATD_QUANTITY_COLS = APAC_QUANTITY_COLS
 ATD_VALUE_COLS = APAC_VALUE_COLS
 
 _LAB = ("Free text, 4 characters (the layout says 'number, decimal point allowed'): '12.3' and '12,3' "
         "are decimals, '0000' (or 0) = not measured, bare digits ('0010', '11') are ambiguous, and "
         "'9999', 'N', '70%' also occur. Parse with TRY_CAST(REPLACE(x, ',', '.') AS DOUBLE) and keep a "
-        "plausible range: see docs/tables/atd.md.")
+        "plausible range: see docs/databases/sia/atd.md.")
 
 ATD = apac("ATD", {
     "AP_PRIPAL": "Dialysis procedure, SIGTAP 0305010xxx: 0305010107 haemodialysis (max. 3 sessions/week, ~91% "
@@ -555,7 +555,7 @@ ATD = apac("ATD", {
 # nefrologia: ANUFMM.DBF" (URL above), for the columns; DATASUS "Layout da interface texto do
 # APAC e do SIA - layout interno" (Apr/2014), "parte variável 09 - Nefrologia", for the codes
 # and for which fields are filled on the first dialysis (*), on later months (**) or both (***).
-# Value checks and the AN -> ATD transition: docs/tables/an.md and docs/tables/atd.md.
+# Value checks and the AN -> ATD transition: docs/databases/sia/an.md and docs/databases/sia/atd.md.
 AN_QUANTITY_COLS = APAC_QUANTITY_COLS
 AN_VALUE_COLS = APAC_VALUE_COLS
 
@@ -564,7 +564,7 @@ _AN_FIRST = (" Layout: first dialysis only (*); in the files, filled on every AP
 _AN_FOLLOW = (" Layout: later months only (**); in the files, filled on every AP_TPAPAC = 2 row and on 44% of "
               "AP_TPAPAC = 1 rows (NULL on the others).")
 _AN_TEXT = (" Text, as typed by the facility: zero ('0', '00', ...) = not measured; a few typos ('9,', 'NN', '##'). "
-            "See docs/tables/an.md.")
+            "See docs/databases/sia/an.md.")
 
 AN = apac("AN", {
     "_ARQUIVO_ORIGEM": "Original DATASUS file this row came from (e.g. ANSP1405.dbc).",
@@ -631,7 +631,7 @@ AN = apac("AN", {
 # names some PS columns differently from the files (QT_APRES / QT_APROV, SERV, CLASS); the names
 # below are those in the files. Values described here were checked on the whole PS history; SAD
 # may differ: give it its own overrides in raas("SAD", {...}).
-# What RAAS is and how it reaches pa (PA_DOCORIG = 'A' / 'B'): docs/tables/raas.md.
+# What RAAS is and how it reaches pa (PA_DOCORIG = 'A' / 'B'): docs/databases/sia/raas.md.
 RAAS_QUANTITY_COLS = ("PA_QTDPRO", "PA_QTDAPR")
 RAAS_VALUE_COLS: tuple[str, ...] = ()  # RAAS files carry no value column (pa has R$ 0 for these rows)
 
@@ -715,7 +715,7 @@ def raas(code: str, own: dict[str, str], without: tuple[str, ...] = ()) -> dict[
 # TP_DROGA, LOC_REALIZ (44); NAT_JUR (45th, last) in the Oct/2014 files and from Jul/2016 (every
 # month of SP probed). Source: "Informe Técnico SIASUS" (Jul/2019), section 4.2 "Layout do arquivo
 # de RAAS - Psicossocial: PS*.DBF" (URL above). PS rows are the pa rows with PA_DOCORIG = 'B'
-# (same rows and quantities, R$ 0): never sum ps and pa together. Details: docs/tables/ps.md.
+# (same rows and quantities, R$ 0): never sum ps and pa together. Details: docs/databases/sia/ps.md.
 PS_QUANTITY_COLS = RAAS_QUANTITY_COLS
 PS_VALUE_COLS = RAAS_VALUE_COLS
 
@@ -763,7 +763,7 @@ PS = raas("PS", {
 # SIASUS" (Jul/2019), section 4.1 "Layout do arquivo de Atenção Domiciliar: SAD*.DBF" (URL above;
 # it lists neither CO_INE nor NAT_JUR, and calls PA_CLASS_S "PA_CLAS_S" and DESTINOPAC
 # "DESTINO_PAC"). SAD rows are the pa rows with PA_DOCORIG = 'A' (R$ 0): never sum sad and pa
-# together. Values below were checked on the whole history (3.52 M rows). Details: docs/tables/sad.md.
+# together. Values below were checked on the whole history (3.52 M rows). Details: docs/databases/sia/sad.md.
 SAD_QUANTITY_COLS = RAAS_QUANTITY_COLS
 SAD_VALUE_COLS = RAAS_VALUE_COLS
 
@@ -823,7 +823,7 @@ SAD = raas("SAD", {
 # APAC de Cirurgia Bariátrica: in fact the monthly FOLLOW-UP of patients after bariatric surgery
 # (procedure 0301120056 on every row; the surgery itself is a hospital admission, in SIH). Files
 # AB<UF><YY><MM>.dbc, Jan/2008 to Apr/2017, then again Jan-Jul/2025 (an exact copy of ABO for those
-# months). From Jan/2014 every AB row is also in ABO, which has more states: see docs/tables/ab.md.
+# months). From Jan/2014 every AB row is also in ABO, which has more states: see docs/databases/sia/ab.md.
 # One DBF layout: the 45 shared AP_ columns and 12 AB_ columns (57), plus AP_NATJUR last in the
 # Dec/2011 files (empty there) and from Jul/2016 (58). Every one of the 635 headers was probed.
 # The AB_ columns follow the OLD laudo (Portaria SAS 493/2007, until Mar/2013). From care month
@@ -911,7 +911,7 @@ AB = apac("AB", {
 # ------------------------------------------------------------------- ABO
 # APAC de Acompanhamento Pós-Cirurgia Bariátrica: the monthly follow-up of patients after bariatric
 # surgery (procedure 0301120056 on every row), files ABO<UF><YY><MM>.dbc, Jan/2014 onward. The same
-# APACs as AB, which it replaces: every AB row from Jan/2014 is also in ABO (see docs/tables/abo.md).
+# APACs as AB, which it replaces: every AB row from Jan/2014 is also in ABO (see docs/databases/sia/abo.md).
 # One DBF layout, 77 columns: 39 shared AP_ columns, 6 more under other names (AP_TPPRE, AP_TPATEND,
 # AP_DTOOCOR, AP_APACAN, CO_CIDPRIM, CO_CIDSEC), 20 AB_ and 12 AP_ columns of the post-bariatric
 # laudo; plus AP_NATJUR last (78) in the Oct/2014 files and from Jul/2016. Every one of the 1,621
@@ -1090,7 +1090,7 @@ ACF = apac("ACF", {
 # 3rd, AMP_MAISNE = 6th, on every row.
 # Sources: DATASUS "Layout da interface texto do APAC e do SIA - layout interno" (Apr/2014), part 19 "Parte variável
 # Procedimentos do laudo de Acompanhamento Multiprofissional em D.R.C." (field positions and codes); the Informe
-# Técnico SIASUS (2019) has no AMP section and TAB_SIA.zip (Oct/2026) no AMP .def. Values: docs/tables/amp.md.
+# Técnico SIASUS (2019) has no AMP section and TAB_SIA.zip (Oct/2026) no AMP .def. Values: docs/databases/sia/amp.md.
 AMP_QUANTITY_COLS = APAC_QUANTITY_COLS
 AMP_VALUE_COLS = APAC_VALUE_COLS
 
