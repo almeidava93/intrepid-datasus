@@ -13,8 +13,8 @@ month in one file type per kind of request form (*laudo*):
 | AD | Diverse requests (*laudos diversos*): eye, cardiology, hearing, ostomy, orthopaedic aids, transplant follow-up, ... | [`ad`](ad.md) | supported |
 | ATD | Dialysis (from Aug/2014) | [`atd`](atd.md) | supported |
 | AN | Nephrology: dialysis, Jan/2008 to Jul/2014 (late bills to Oct/2014; replaced by ATD, see [the transition](atd.md#from-an-to-atd-2014)) | [`an`](an.md) | supported |
-| AB | Bariatric surgery follow-up | | planned |
-| ABO | Post-bariatric surgery follow-up | | planned |
+| AB | Bariatric surgery follow-up (*cirurgia bariátrica*), Jan/2008 to Apr/2017 plus Jan–Jul/2025; from 2014 a subset of ABO, see [AB and ABO](ab.md#ab-and-abo) | [`ab`](ab.md) | supported |
+| ABO | Post-bariatric surgery follow-up, Jan/2014 onward (the same APACs as AB, more states, new laudo in its own columns) | | planned |
 | ACF | Arteriovenous fistula creation | | planned |
 | AMP | Multiprofessional follow-up | | planned |
 
@@ -88,7 +88,7 @@ files carry no quantity column, so for quantities use `pa`.
   placeholder** (`{{{{{{{{{{{{{{{`) on a growing share of rows since 2024 (see
   [aq](aq.md#following-a-patient); in AR 95% of all rows by Aug/2026, see
   [ar](ar.md#following-a-patient); in AD 67% in Aug/2026, see
-  [ad](ad.md#patients); in ATD 96% in Aug/2026, see [atd](atd.md#patients)); check the
+  [ad](ad.md#patients); in ATD 96% in Aug/2026, see [atd](atd.md#patients); in AB 17% in 2025, see [ab](ab.md#patients)); check the
   type's page before counting patients.
 
 ## Shared columns
@@ -160,7 +160,7 @@ files and can differ slightly between types.
 | `AP_UFNACIO` | 3 | Nationality code. | `010` = Brazilian. |
 | `AP_CEPPCN` | 8 | Postcode (CEP) of the patient. | |
 | `AP_UFDIF` | 2 | Patient's state differs from the facility's: `0` same, `1` different. | |
-| `AP_MNDIF` | 2 | Patient's municipality differs from the facility's: `0` same, `1` different. | **Always `1` in AM, AQ, AR, AD, ATD and AN** even when they are equal; compare `AP_MUNPCN` with `AP_UFMUN` instead. |
+| `AP_MNDIF` | 2 | Patient's municipality differs from the facility's: `0` same, `1` different. | **Always `1` in AM, AQ, AR, AD, ATD, AN and AB** even when they are equal; compare `AP_MUNPCN` with `AP_UFMUN` instead. |
 
 ### Diagnosis
 
@@ -175,7 +175,10 @@ files and can differ slightly between types.
 The Informe Técnico (Jul/2019) says the APAC layouts have not changed since Jan/2008. The
 only change seen in the shared columns is `AP_NATJUR`, added in Jul/2016 (AM, AQ, AR and AD; the
 views show `NULL` before). It is also in the **Dec/2011** files, and only in that month before
-Jul/2016, in every APAC type then published (AM, AQ, AR, AD, AN; and BI's `NAT_JUR`). Types can also gain columns of their own (AQ: `AQ_MED01`–`AQ_MED10`
+Jul/2016, in every APAC type then published (AM, AQ, AR, AD, AN, AB; and BI's `NAT_JUR`). Types can also gain columns of their own (AQ: `AQ_MED01`–`AQ_MED10`
 from Jan/2021). Header checks in Nov/2026 found the 46 `AP_` columns above in AM, AQ, AR, AD, ATD,
-ACF and AMP (AN, which ended in 2014, has all but `AP_NATJUR`, except in Dec/2011). ABO renames a few of them
+ACF, AMP and AB (AN, which ended in 2014, has all but `AP_NATJUR`, except in Dec/2011). ABO renames a few of them
 (`AP_TPPRE`, `AP_TPATEND`, `AP_DTOOCOR`, `AP_APACAN`) and adds comorbidity fields.
+A type's own columns can also change meaning without a change of header: AB's `AB_` columns hold
+the old bariatric laudo until Mar/2013 and the new one, cut at the old positions, from Apr/2013
+(see [ab](ab.md#two-laudos-in-one-layout)).

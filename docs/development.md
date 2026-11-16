@@ -68,6 +68,13 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
    health care, 60% of its rows, moved to RAAS in Jan/2013). Group the procedures by SIGTAP
    subgroup (`LEFT(AP_PRIPAL, 4)`, or `procedimentos.subgrupo`) per year. Also count
    `AP_PRIPAL IS NULL`: AD blanks it on APACs billed late with a code that was just retired.
+   The header does not show a change of *content* in the type's own columns either: AB's
+   `AB_` columns hold the old bariatric laudo until Mar/2013 and the new laudo, cut at the old
+   field positions, from Apr/2013 (`AB_PROCAIH = '0407010173'` becomes `'30 30 NNSN'`). Look at
+   the top values of every own column by year, and compare them with the field positions of
+   the *parte variável* in the interface layout. Two types can also publish the same APACs:
+   every AB row from 2014 is also in ABO (which has more states), so compare a new type with its
+   siblings on `AP_AUTORIZ`/`AP_CMP` before saying what it covers.
    Columns are not always in the same order across types: in ATD, `AP_NATJUR` comes *after*
    the type's own columns (last), so copy the field list from the probe, not from another type.
    The Informe Técnico often lists columns without their codes; the facilities' import layout
@@ -109,7 +116,8 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
    file (SAD: 1,088 headers in ~8 min with 6 threads) and group them by column set: SAD has
    three (43 columns, + `CO_INE` from Jan/2015, + `NAT_JUR` in Oct/2014 and from Jul/2016).
    Also sum the header row counts by year: SAD files go on until Oct/2018, but rows fall from
-   1.55 M (2015) to 5 k (2017), so the real series ends in mid-2016. Probing every month of one state also
+   1.55 M (2015) to 5 k (2017), so the real series ends in mid-2016. AB has a hole instead: files
+   until Apr/2017, none for 2017-05 to 2024-12, then Jan–Jul/2025 again. Probing every month of one state also
    shows months with *no* file (PS: AC has 159 of 166 months, AP 150): there, a missing
    state-month means no production, not a failed download.
 2. **Dictionary** (`dictionary.py`): add `BI = {**PARTITION, "COL": "description", ...}`
@@ -173,7 +181,9 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       `tests/test_an.py` is the one for a discontinued type (real last month, one odd month
       with an extra column); `tests/test_ps.py` is the one for RAAS types (shared RAAS
       columns, a space-padded field name, a column present in one odd month and again later),
-      and `tests/test_sad.py` the one for a discontinued RAAS type with three column sets.
+      and `tests/test_sad.py` the one for a discontinued RAAS type with three column sets;
+      `tests/test_ab.py` is the one for an APAC type with a gap in its files and an extra column
+      in Dec/2011 and again from Jul/2016.
 5. **Docs:**
     - a page `docs/tables/<code>.md` (copy the structure of `bi.md`, or `am.md` for an APAC
       type: link to [APAC file types](tables/apac.md) for the `AP_` columns and only list
@@ -234,7 +244,7 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
     file (82 MB, 1.37 M rows) took 28 s and about 1.2 GB of RAM; AQ's (10.5 MB, 102 k
     rows), 7 s and 0.4 GB. For a type with many tiny files the Parquet ratio is high,
     because each file has about 20 KB of overhead (AR: 0.81 over its 5,491 files; SAD: 0.89,
-    files of ~49 KB), and
+    files of ~49 KB; AB: **1.2**, files of ~25 KB, so Parquet is larger than the `.dbc`), and
     small files can take up to 30 s each on the FTP (AR, every month: about 35 min). To fetch
     a whole history faster, run two or three fetches of different year ranges into separate
     stores (`-d`) at once, then move the `data/<key>/competencia=*` folders into one store and

@@ -222,7 +222,7 @@ APAC_COMMON = {
     "AP_CEPPCN": "Postcode (CEP) of the patient's address.",
     "AP_UFDIF": "Patient lives in another state than the facility (0 = same, 1 = different).",
     "AP_MNDIF": "Patient lives in another municipality than the facility (0 = same, 1 = different). "
-                "Unreliable (always 1 in AM, AQ, AR, AD, ATD and AN): compare AP_MUNPCN with AP_UFMUN instead.",
+                "Unreliable (always 1 in AM, AQ, AR, AD, ATD, AN and AB): compare AP_MUNPCN with AP_UFMUN instead.",
     "AP_DTINIC": "Start of the APAC's validity period (YYYYMMDD).",
     "AP_DTFIM": "End of the APAC's validity period (YYYYMMDD); up to 3 months after AP_DTINIC.",
     "AP_TPATEN": "APAC type of care (tipo de atendimento / laudo); fixed per file type.",
@@ -807,4 +807,92 @@ SAD = raas("SAD", {
     "NAT_JUR": "Facility legal nature (IBGE CONCLA code: 1031 = municipal executive body, 1201 = public fund "
                "(municipal health fund), 1023 = state executive body, 1244 = municipality, ...). Only in the Oct/2014 files "
                "(filled on every row) and from Jul/2016 (the 9,079 rows of Jul/2016-Oct/2018); NULL otherwise.",
+})
+
+
+# ------------------------------------------------------------------- AB
+# APAC de Cirurgia Bariátrica: in fact the monthly FOLLOW-UP of patients after bariatric surgery
+# (procedure 0301120056 on every row; the surgery itself is a hospital admission, in SIH). Files
+# AB<UF><YY><MM>.dbc, Jan/2008 to Apr/2017, then again Jan-Jul/2025 (an exact copy of ABO for those
+# months). From Jan/2014 every AB row is also in ABO, which has more states: see docs/tables/ab.md.
+# One DBF layout: the 45 shared AP_ columns and 12 AB_ columns (57), plus AP_NATJUR last in the
+# Dec/2011 files (empty there) and from Jul/2016 (58). Every one of the 635 headers was probed.
+# The AB_ columns follow the OLD laudo (Portaria SAS 493/2007, until Mar/2013). From care month
+# Apr/2013 facilities fill the NEW post-bariatric laudo, and DATASUS kept cutting the text at the
+# old field positions, so the same columns hold other fields: each description gives both readings.
+# Sources: "Informe Técnico SIASUS" (Jul/2019), APAC section (URL above), for the columns;
+# DATASUS "Layout da interface texto do APAC e do SIA - layout interno" (Apr/2014), "parte
+# variável - Procedimentos de Cirurgia Bariátrica" (until Mar/2013) and "... Acompanh. PÓS
+# Cirurgia Bariátrica" (after Mar/2013), for the field positions and codes.
+AB_QUANTITY_COLS = APAC_QUANTITY_COLS
+AB_VALUE_COLS = APAC_VALUE_COLS
+
+_AB_OLD = " Until Mar/2013 (AB_PONTBAR '0'/'1'): "
+_AB_NEW = " From Apr/2013 (AB_PONTBAR = 'E'): "
+
+AB = apac("AB", {
+    "_ARQUIVO_ORIGEM": "Original DATASUS file this row came from (e.g. ABSP1606.dbc).",
+    "AP_PRIPAL": "Always 0301120056, follow-up of a patient after bariatric surgery by a multiprofessional "
+                 "team (R$ 40 a month; R$ 39.38 until Mar/2013). NULL on one row (Jul/2025, AP_TPAPAC = 4). "
+                 "Joins procedimentos.",
+    "AP_VL_AP": "Approved value, R$ (nominal) = PA_VALAPR of the APAC's single pa row (no secondary "
+                "procedures). 40.00 (39.38 until Mar/2013, 37.50 in 2008) or 0.00 (28% of rows, mostly continuation months).",
+    "AP_TPATEN": "APAC type of care; always 05 in AB.",
+    "AP_TPAPAC": "1 = initial, 2 = continuation, 3 = single (2008-2012 only), 4 = one row without a procedure "
+                 "(Jul/2025). An APAC runs up to three months (median 87 days).",
+    "AP_TIPPRE": "Provider type (same codes as pa's PA_TIPPRE): until 2017 61, 00, 40, 60, 30, 20, 22; "
+                 "always 00 in 2025.",
+    "AP_TPUPS": "Facility type, CNES codes: 05 = general hospital (98%), 07 = specialised hospital.",
+    "AP_MNDIF": "Patient lives in another municipality than the facility. Always 1 in AB (wrong, as in the "
+                "other APAC types): compare AP_MUNPCN with AP_UFMUN instead.",
+    "AP_CNSPCN": "Patient's CNS, ENCODED by DATASUS (same encoding as the other APAC types). '{{{{{{{{{{{{{{{' "
+                 "(placeholder) on 8% of rows in 2009, 2-4% in 2010-2011, none 2013-2017; empty or placeholder "
+                 "on 17% of rows in 2025 (all of CE, 30% of SP, 25% of MG).",
+    "AP_CIDPRI": "Always '0000' in AB: the diagnosis (E66x, obesity) is in AP_CIDCAS, or cut into "
+                 "AB_PONTBAR/AB_TABBARR from Apr/2013.",
+    "AP_CIDSEC": "Always '0000' in AB.",
+    "AP_CIDCAS": "Associated cause, ICD-10, or '0000' (89% of rows); otherwise mostly E668/E660/E669 (obesity). "
+                 "Joins cid10.",
+    "AP_NATJUR": "Facility legal nature. In the Dec/2011 files (empty there) and from Jul/2016; NULL in "
+                 "between.",
+    "AB_IMC": "Patient's body mass index (BMI), kg/m2, whole number, 3 characters ('32' or '032'), same in both "
+              "laudos. 0 on 8% of rows, NULL on 5%; 150-999 on 3% (BMI x 10 without the point, "
+              "e.g. '345' = 34.5).",
+    "AB_PROCAIH": "Text, 10 characters." + _AB_OLD + "SIGTAP code of the bariatric surgery (the AIH procedure): "
+                  "0407010173 gastroplasty with intestinal bypass (93%), 0407010122 gastrectomy with or without "
+                  "duodenal switch, 0407010181 vertical banded gastroplasty, plus typos." + _AB_NEW +
+                  "3 chars % of excess weight lost, 3 chars kg lost, then 4 S/N flags for the surgery done: "
+                  "gastrectomy with/without duodenal switch, sleeve gastrectomy, gastroplasty with intestinal "
+                  "bypass, vertical banded gastroplasty (e.g. '30 30 NNSN' = 30%, 30 kg, bypass). Leading blanks "
+                  "are stripped: lpad to 10 before cutting it.",
+    "AB_DTCIRUR": "Date of the bariatric surgery (YYYYMMDD), same in both laudos. Filled on every row.",
+    "AB_NUMAIH": "Number of the AIH (hospital admission, SIH) of the surgery, 13 digits, same in both laudos.",
+    "AB_PRCAIH2": "Text, 10 characters." + _AB_OLD + "SIGTAP code of a second surgery (almost always empty)."
+                  + _AB_NEW + "a blank, then S/N flags: any comorbidity, hypertension (I10), diabetes (O243 in "
+                  "the layout), dyslipidaemia (E780), arthrosis (M199), sleep apnoea (G473), then the first 3 "
+                  "characters of 'other comorbidity' (ICD-10). The leading blank is stripped: 'N' = no "
+                  "comorbidity, 'SSNNNN' = comorbidity, hypertension only.",
+    "AB_PRCAIH3": "Text, 10 characters." + _AB_OLD + "SIGTAP code of a third surgery (almost always empty)."
+                  + _AB_NEW + "last character of 'other comorbidity' (usually blank, then stripped), then S/N: "
+                  "uses medicines, physical activity, multivitamins, weight regain, healthy-diet adherence, "
+                  "post-bariatric abdominal dermolipectomy (0413040054), then 3 digits: months after the "
+                  "bariatric surgery it was done.",
+    "AB_NUMAIH2": "Text, 13 characters." + _AB_OLD + "AIH number of a second surgery (almost always empty)."
+                  + _AB_NEW + "plastic surgery after bariatric surgery, each as S/N + 3-digit months since the "
+                  "bariatric surgery: mammoplasty (0413040089), brachial (0413040062) and crural (0413040070) "
+                  "dermolipectomy, then the S/N of circumferential abdominal dermolipectomy (0414040267). "
+                  "'N   N   N   N' = none.",
+    "AB_DTCIRG2": "Text, 8 characters." + _AB_OLD + "date of a second surgery (YYYYMMDD; almost always empty)."
+                  + _AB_NEW + "months since the bariatric surgery of the circumferential dermolipectomy "
+                  "(3 digits; '000' or NULL).",
+    "AB_MESACOM": "Number of months of follow-up (2 digits, '01' to '24' and more; also '1', '2', ...), both "
+                  "laudos. NULL on 29% of rows.",
+    "AB_ANOACOM": "Year of follow-up (4 characters, both laudos): mostly the calendar year ('2015') from 2013, "
+                  "but also '0', '01'-'05' (year since surgery). NULL on half the rows.",
+    "AB_PONTBAR": "Text, 1 character." + _AB_OLD + "BAROS score (Bariatric Analysis and Reporting Outcome "
+                  "System, 'pontuação de Barros'), '0' or '1' (codes not documented)." + _AB_NEW +
+                  "always 'E': the first character of the main diagnosis (E66x), which the new laudo has here. "
+                  "Use it to tell the two readings apart.",
+    "AB_TABBARR": "Text, 1 character." + _AB_OLD + "BAROS table (outcome class), '0' to '4' (codes not "
+                  "documented)." + _AB_NEW + "always '6', the second character of the diagnosis (E66x).",
 })
