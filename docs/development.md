@@ -59,7 +59,7 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
    columns change, the file type needs one era per layout. For a small type, probe every
    month of one state, not just January: **Dec/2011** files of every type then published
    (AM, AQ, AR, AD, AN, BI) carry `AP_NATJUR` / `NAT_JUR` for that one month (empty in AN),
-   which a January-only probe misses. Add it to the field-list test of your type. A column only *added* over time
+   which a January-only probe misses; **Oct/2014** files of SAD and ABO have it too. Add it to the field-list test of your type. A column only *added* over time
    (BI's `NAT_JUR`) needs no new era; the views read with `union_by_name` and older months
    show `NULL`. The same trick gives row counts, e.g. to compare a whole file with its parts.
    The header does not show changes in *meaning*: also look at the main procedure codes and
@@ -74,12 +74,20 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
    the top values of every own column by year, and compare them with the field positions of
    the *parte variável* in the interface layout. Two types can also publish the same APACs:
    every AB row from 2014 is also in ABO (which has more states), so compare a new type with its
-   siblings on `AP_AUTORIZ`/`AP_CMP` before saying what it covers.
+   siblings on `AP_AUTORIZ`/`AP_CMP` before saying what it covers. When they overlap, compare
+   their own columns field by field on the shared rows: ABO decodes the laudo that AB packs, and
+   the comparison showed that ABO's `AB_PRCAIH3` holds mammoplasty under the crural-dermolipectomy
+   code and that `AP_POLIVIT`/`AP_ATV_FIS` are swapped. To give one series from both, split on the
+   file month (`competencia`), not on `AP_CMP`: both bill late months in their files.
    Columns are not always in the same order across types: in ATD, `AP_NATJUR` comes *after*
    the type's own columns (last), so copy the field list from the probe, not from another type.
    The Informe Técnico often lists columns without their codes; the facilities' import layout
    (*Layout da interface texto do APAC e do SIA*, Apr/2014, one *parte variável* per laudo:
-   18 = dialysis, 19 = multiprofessional CKD follow-up) has the code lists.
+   18 = dialysis, 19 = multiprofessional CKD follow-up) has the code lists. Some types have no
+   section in the Informe Técnico at all (ABO): DATASUS's TabWin definitions in
+   `SIASUS/200801_/Auxiliar/TAB_SIA.zip` (74 MB; one `.def` per type, e.g.
+   `APAC_Pos_Cirurgia_Bariatica.def`, plus the `CNV/*.CNV` code tables it names) list the columns
+   TabWin reads and their code values. Extract only the files you need.
 
     ```python
     import struct
@@ -131,8 +139,9 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
    **APAC types** (AM, AQ, AR, AD, ATD, AN, AB, ABO, ACF, AMP) share 46 `AP_` columns.
    Build the dict with `dictionary.apac("AQ", {...own columns...})`: it adds `PARTITION` and
    `APAC_COMMON`, and entries in `own` override shared ones (use that for values specific
-   to the type). Columns the type renames or lacks go in `without=(...)` (ABO renames
-   `AP_TIPPRE`, `AP_TPATEN`, `AP_DTOCOR`, `AP_APACANT`). Use `APAC_QUANTITY_COLS` (empty)
+   to the type). Columns the type renames or lacks go in `without=(...)` (ABO renames six:
+   `AP_TIPPRE`, `AP_TPATEN`, `AP_DTOCOR`, `AP_APACANT`, `AP_CIDPRI`, `AP_CIDSEC` are `AP_TPPRE`,
+   `AP_TPATEND`, `AP_DTOOCOR`, `AP_APACAN`, `CO_CIDPRIM`, `CO_CIDSEC`). Use `APAC_QUANTITY_COLS` (empty)
    and `APAC_VALUE_COLS` (`AP_VL_AP`). If a shared description turns out wrong for every
    type, fix it in `APAC_COMMON`, not in one type's dict.
 
@@ -183,7 +192,8 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
       columns, a space-padded field name, a column present in one odd month and again later),
       and `tests/test_sad.py` the one for a discontinued RAAS type with three column sets;
       `tests/test_ab.py` is the one for an APAC type with a gap in its files and an extra column
-      in Dec/2011 and again from Jul/2016.
+      in Dec/2011 and again from Jul/2016, and `tests/test_abo.py` the one for an APAC type that
+      renames shared columns (it checks `without=`).
 5. **Docs:**
     - a page `docs/tables/<code>.md` (copy the structure of `bi.md`, or `am.md` for an APAC
       type: link to [APAC file types](tables/apac.md) for the `AP_` columns and only list
@@ -244,7 +254,8 @@ Every file type sub-issue of #3 follows these steps. `BI` is used as the example
     file (82 MB, 1.37 M rows) took 28 s and about 1.2 GB of RAM; AQ's (10.5 MB, 102 k
     rows), 7 s and 0.4 GB. For a type with many tiny files the Parquet ratio is high,
     because each file has about 20 KB of overhead (AR: 0.81 over its 5,491 files; SAD: 0.89,
-    files of ~49 KB; AB: **1.2**, files of ~25 KB, so Parquet is larger than the `.dbc`), and
+    files of ~49 KB; AB: **1.2**, files of ~25 KB, so Parquet is larger than the `.dbc`; ABO: 1.38,
+    files of ~24 KB), and
     small files can take up to 30 s each on the FTP (AR, every month: about 35 min). To fetch
     a whole history faster, run two or three fetches of different year ranges into separate
     stores (`-d`) at once, then move the `data/<key>/competencia=*` folders into one store and

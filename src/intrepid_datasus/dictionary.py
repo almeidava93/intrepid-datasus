@@ -182,7 +182,7 @@ BI = {
 # "Layout dos arquivos de APAC" (3.4.1 AD, 3.4.2 AM, ...),
 # ftp://ftp.datasus.gov.br/dissemin/publicos/SIASUS/200801_/Doc/Informe_Tecnico_SIASUS_2019_07.pdf
 # AP_NATJUR is not in the 2019 document for every type but is in the files from Jul/2016.
-# ABO renames a few of these (AP_TPPRE, AP_TPATEND, AP_DTOOCOR, AP_APACAN): pass them to
+# ABO renames six of these (AP_TPPRE, AP_TPATEND, AP_DTOOCOR, AP_APACAN, CO_CIDPRIM, CO_CIDSEC): pass them to
 # apac() with their own descriptions and drop the originals with ``without``.
 # What an APAC is (authorisation, validity, continuation, patient): docs/tables/apac.md.
 APAC_QUANTITY_COLS: tuple[str, ...] = ()  # APAC files carry no quantity column
@@ -222,7 +222,7 @@ APAC_COMMON = {
     "AP_CEPPCN": "Postcode (CEP) of the patient's address.",
     "AP_UFDIF": "Patient lives in another state than the facility (0 = same, 1 = different).",
     "AP_MNDIF": "Patient lives in another municipality than the facility (0 = same, 1 = different). "
-                "Unreliable (always 1 in AM, AQ, AR, AD, ATD, AN and AB): compare AP_MUNPCN with AP_UFMUN instead.",
+                "Unreliable (always 1 in AM, AQ, AR, AD, ATD, AN, AB and ABO): compare AP_MUNPCN with AP_UFMUN instead.",
     "AP_DTINIC": "Start of the APAC's validity period (YYYYMMDD).",
     "AP_DTFIM": "End of the APAC's validity period (YYYYMMDD); up to 3 months after AP_DTINIC.",
     "AP_TPATEN": "APAC type of care (tipo de atendimento / laudo); fixed per file type.",
@@ -896,3 +896,110 @@ AB = apac("AB", {
     "AB_TABBARR": "Text, 1 character." + _AB_OLD + "BAROS table (outcome class), '0' to '4' (codes not "
                   "documented)." + _AB_NEW + "always '6', the second character of the diagnosis (E66x).",
 })
+
+
+
+# ------------------------------------------------------------------- ABO
+# APAC de Acompanhamento Pós-Cirurgia Bariátrica: the monthly follow-up of patients after bariatric
+# surgery (procedure 0301120056 on every row), files ABO<UF><YY><MM>.dbc, Jan/2014 onward. The same
+# APACs as AB, which it replaces: every AB row from Jan/2014 is also in ABO (see docs/tables/abo.md).
+# One DBF layout, 77 columns: 39 shared AP_ columns, 6 more under other names (AP_TPPRE, AP_TPATEND,
+# AP_DTOOCOR, AP_APACAN, CO_CIDPRIM, CO_CIDSEC), 20 AB_ and 12 AP_ columns of the post-bariatric
+# laudo; plus AP_NATJUR last (78) in the Oct/2014 files and from Jul/2016. Every one of the 1,621
+# headers was probed. Unlike AB, the laudo is decoded into its own columns, but several are always
+# empty (BMI, weight lost) or mislabelled (AB_PRCAIH3, AP_ATV_FIS/AP_POLIVIT): checked against AB's
+# packed fields on the 145,424 rows both types publish.
+# Sources: the Informe Técnico SIASUS (Jul/2019) has no ABO section. Column names and code tables:
+# DATASUS's TabWin definition APAC_Pos_Cirurgia_Bariatica.def in TAB_SIA.zip (SIASUS/200801_/Auxiliar,
+# Oct/2026; CID_COM.CNV, SIMNAO2.CNV, PROC_CB.DBF). Field meanings: DATASUS "Layout da interface texto
+# do APAC e do SIA - layout interno" (Apr/2014), "parte variável - Procedimentos de Acompanh. PÓS
+# Cirurgia Bariátrica" (after Mar/2013).
+ABO_QUANTITY_COLS = APAC_QUANTITY_COLS
+ABO_VALUE_COLS = APAC_VALUE_COLS
+
+_ABO_EMPTY = " Always empty (NULL) in ABO, Jan/2014-Aug/2026: "
+_ABO_PLASTIC = ("SIGTAP code of a plastic surgery after weight loss, written when the laudo says it was done "
+                "(S), NULL otherwise: ")
+_ABO_MONTHS = ("Months between the bariatric surgery and the plastic surgery in {} (3 digits, e.g. '036'), as "
+               "typed in the laudo; '000' or NULL when not done.")
+
+ABO = apac("ABO", {
+    "_ARQUIVO_ORIGEM": "Original DATASUS file this row came from (e.g. ABOSP1606.dbc).",
+    "AP_PRIPAL": "Always 0301120056, follow-up of a patient after bariatric surgery by a multiprofessional "
+                 "team (R$ 40 a month); NULL on 54 rows (2021-2026) with AP_TPAPAC = 4. Joins procedimentos.",
+    "AP_VL_AP": "Approved value, R$ (nominal) = PA_VALAPR of the APAC's single pa row (no secondary "
+                "procedures): 40.00, or 0.00 on 31% of rows (62% of continuation months, AP_TPAPAC = 2). "
+                "NULL on the 54 AP_TPAPAC = 4 rows.",
+    "AP_TPAPAC": "1 = initial (53%), 2 = continuation (47%), 4 = 54 rows without procedure or value "
+                 "(2021-2026). No 3 (single). An APAC runs up to three months.",
+    "AP_TPUPS": "Facility type, CNES codes: 05 = general hospital (99%), 07 = specialised hospital.",
+    "AP_TPPRE": "Provider type (AP_TIPPRE in the other APAC types; same codes as pa's PA_TIPPRE, equal on "
+                "every matched row): 00, 61, 60, 40, 30, 20, 22 until 2016; always 00 from 2017.",
+    "AP_TPATEND": "APAC type of care (AP_TPATEN in the other APAC types); always 05 (bariatric surgery) in ABO.",
+    "AP_DTOOCOR": "Date of the event (discharge, closure, ...) that replaces the end of validity, YYYYMMDD "
+                  "(AP_DTOCOR in the other APAC types). Filled on the 17% of rows with an exit.",
+    "AP_APACAN": "Number of the previous APAC, or zeros (13 or 12 digits; 95% of rows) (AP_APACANT in the "
+                 "other APAC types). NULL on 1,051 rows of 2014-2016.",
+    "CO_CIDPRIM": "Main diagnosis (AP_CIDPRI in the other APAC types). Always '0000' in ABO (pa has '1111' on "
+                  "the same rows): the obesity code, if any, is in AP_CIDCAS.",
+    "CO_CIDSEC": "Secondary diagnosis (AP_CIDSEC in the other APAC types). Always '0000' in ABO.",
+    "AP_CIDCAS": "Associated cause, ICD-10 (no dot), or '0000' (89% of rows); otherwise mostly E668, E660, "
+                 "E669 (obesity). Joins cid10.",
+    "AP_MNDIF": "Patient lives in another municipality than the facility. Always 1 in ABO (wrong, as in the "
+                "other APAC types): compare AP_MUNPCN with AP_UFMUN instead.",
+    "AP_CNSPCN": "Patient's CNS, ENCODED by DATASUS (same encoding as the other APAC types). Filled on every "
+                 "row until Apr/2024; then NULL or '{{{{{{{{{{{{{{{' on 10-25% of rows a month, 39% in "
+                 "Feb/2026 and 58% in Aug/2026 (2024-2026: 95% of CE rows, 99% of PA, 20-26% of SP, MG, SC).",
+    "AP_NATJUR": "Facility legal nature (IBGE CONCLA code). Only in the Oct/2014 files and from Jul/2016; "
+                 "NULL otherwise. The last column of the file.",
+    "AB_IMC": "Patient's body mass index in the laudo." + _ABO_EMPTY + "ABO has no BMI. AB has it for "
+              "the same APACs in its states until Apr/2017 (join on AP_AUTORIZ, AP_CMP).",
+    "AB_PROCAIH": "SIGTAP code of the bariatric surgery (an SIH hospital procedure), decoded by DATASUS from "
+                  "the laudo's four S/N flags: 0407010173 gastroplasty with intestinal bypass (91%), 0407010181 "
+                  "vertical banded gastroplasty, 0407010360 sleeve gastrectomy, 0407010122 gastrectomy with or "
+                  "without duodenal switch. NULL when no flag is S (3% of 2014 rows, and from May/2025, rising "
+                  "to 55% of the rows in Aug/2026). Joins procedimentos.",
+    "AB_DTCIRUR": "Date of the bariatric surgery (YYYYMMDD). Median 6-10 months before the month of care.",
+    "AB_NUMAIH": "Number of the AIH (hospital admission, SIH) of the bariatric surgery, 13 digits.",
+    "AB_PRCAIH2": _ABO_PLASTIC + "always 0413040054, abdominal dermolipectomy (1.6% of rows).",
+    "AB_T_PRC2": _ABO_MONTHS.format("AB_PRCAIH2") + " Also '001' on 7,500 rows.",
+    "AB_PRCAIH3": _ABO_PLASTIC + "always written as 0413040070 (crural dermolipectomy), but it is the "
+                  "laudo's MAMMOPLASTY flag (SIGTAP 0413040089): it equals AB's mammoplasty flag on all 145,424 "
+                  "rows compared; crural dermolipectomy is AB_PRCAIH5. 0.08% of rows, nearly all women.",
+    "AB_T_PRC3": _ABO_MONTHS.format("AB_PRCAIH3 (mammoplasty)"),
+    "AB_PRCAIH4": _ABO_PLASTIC + "always 0413040062, brachial dermolipectomy (0.08% of rows).",
+    "AB_T_PRC4": _ABO_MONTHS.format("AB_PRCAIH4"),
+    "AB_PRCAIH5": _ABO_PLASTIC + "always 0413040070, crural dermolipectomy (0.06% of rows).",
+    "AB_T_PRC5": _ABO_MONTHS.format("AB_PRCAIH5"),
+    "AB_PRCAIH6": _ABO_PLASTIC + "always 0413040202, which is not a SIGTAP code: it is the laudo's "
+                  "circumferential abdominal dermolipectomy (SIGTAP 0413040259; 0414040267 in the layout). "
+                  "67 rows.",
+    "AB_T_PRC6": _ABO_MONTHS.format("AB_PRCAIH6"),
+    "AB_NUMAIH2": "Second AIH number of the old laudo." + _ABO_EMPTY + "kept from AB's layout.",
+    "AB_DTCIRG2": "Second surgery's date of the old laudo." + _ABO_EMPTY + "kept from AB's layout.",
+    "AB_MESACOM": "Number of months of follow-up (2 digits, '01' to '24' and more, also '1', '2'; '00' on 2%). "
+                  "NULL on 11% of rows (29% in 2014, under 1% in 2021-2022).",
+    "AB_ANOACOM": "Year of follow-up, cut to its FIRST CHARACTER (the field is 1 wide here, 4 in AB): '2' = a "
+                  "calendar year (2014, 2025, ...), '0' = '01'-'09' (years since surgery), '1'-'9' other. NULL "
+                  "on 21%. Practically unusable.",
+    "AB_PONTBAR": "BAROS score of the old laudo." + _ABO_EMPTY + "kept from AB's layout.",
+    "AB_TABBARR": "BAROS table of the old laudo." + _ABO_EMPTY + "kept from AB's layout.",
+    "AP_COMORB": "Patient has comorbidities (S = yes, N = no): S on 12% of rows. NULL on the 54 AP_TPAPAC = 4 "
+                 "rows.",
+    "AP_CID_C1": "Hypertension: 'I10' when the laudo says yes, NULL otherwise (7.3% of rows).",
+    "AP_CID_C2": "Diabetes mellitus: 'O243' (the code the laudo uses) when yes, NULL otherwise (3.2%).",
+    "AP_CID_C3": "Dyslipidaemia: 'E780' when yes, NULL otherwise (2.3%).",
+    "AP_CID_C4": "Arthrosis: 'M199' when yes, NULL otherwise (2.4%).",
+    "AP_CID_C5": "Sleep apnoea: 'G473' when yes, NULL otherwise (2.4%).",
+    "AP_CID_CO": "Other comorbidity, ICD-10 (3 or 4 characters, no dot), NULL if none (0.9% of rows): mostly "
+                 "E660 (obesity due to excess calories), E668, E039 (hypothyroidism), F41, O243. Joins cid10.",
+    "AP_MEDICAM": "Patient uses medicines (1 = yes, 0 = no).",
+    "AP_POLIVIT": "Labelled 'uses multivitamins' (1 = yes, 0 = no), but holds the laudo's PHYSICAL ACTIVITY "
+                  "flag: it equals AB's physical-activity position on all 145,424 rows compared. Swapped with "
+                  "AP_ATV_FIS.",
+    "AP_ATV_FIS": "Labelled 'practises physical activity' (1 = yes, 0 = no), but holds the laudo's MULTIVITAMIN "
+                  "flag (equal to AB's multivitamin position on all 145,424 rows compared). Swapped with "
+                  "AP_POLIVIT.",
+    "AP_REG_PES": "Patient regained weight (1 = yes, 0 = no): 1 on 2% of rows.",
+    "AP_ADESAO": "Patient adheres to a healthy, balanced diet (1 = yes, 0 = no).",
+}, without=("AP_TIPPRE", "AP_TPATEN", "AP_DTOCOR", "AP_APACANT", "AP_CIDPRI", "AP_CIDSEC"))

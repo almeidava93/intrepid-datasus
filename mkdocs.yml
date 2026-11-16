@@ -46,6 +46,7 @@ nav:
       - atd (APAC Tratamento Dialítico): tables/atd.md
       - an (APAC Nefrologia): tables/an.md
       - ab (APAC Cirurgia Bariátrica): tables/ab.md
+      - abo (APAC Acompanhamento Pós-Cirurgia Bariátrica): tables/abo.md
       - RAAS file types: tables/raas.md
       - ps (RAAS Psicossocial): tables/ps.md
       - sad (RAAS Atenção Domiciliar): tables/sad.md

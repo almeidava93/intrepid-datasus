@@ -182,7 +182,12 @@ AB = FileType("AB", "APAC Cirurgia Bariátrica", (  # follow-up; data ends Apr/2
         quantity_cols=dictionary.AB_QUANTITY_COLS, value_cols=dictionary.AB_VALUE_COLS),
 ), parquet_ratio=1.2)  # all 635 files: 19.3 MB Parquet / 16.1 MB .dbc (tiny files, ~25 KB each)
 
-REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA, BI, AM, AQ, AR, AD, ATD, AN, PS, SAD, AB)}
+ABO = FileType("ABO", "APAC Acompanhamento Pós-Cirurgia Bariátrica", (  # the same APACs as AB, from 2014
+    Era("abo", FTP_CURRENT_DIR, 201401, 999912, dictionary.ABO,
+        quantity_cols=dictionary.ABO_QUANTITY_COLS, value_cols=dictionary.ABO_VALUE_COLS),
+), parquet_ratio=1.38)  # all 1,621 files: 53.7 MB Parquet / 38.9 MB .dbc (tiny files, ~24 KB each)
+
+REGISTRY: dict[str, FileType] = {ft.code: ft for ft in (PA, BI, AM, AQ, AR, AD, ATD, AN, PS, SAD, AB, ABO)}
 DEFAULT_TABLES = ("PA",)  # what the CLI uses when --table is not given
 
 
