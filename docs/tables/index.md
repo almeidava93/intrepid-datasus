@@ -27,6 +27,8 @@ views over the local Parquet store, so a table only exists once its data has bee
 | `ab_raw` | same | same, every column as text | [ab](ab.md#ab-vs-ab_raw) |
 | `abo` | `datasus fetch -T abo` (Jan/2014 onward) | one post-bariatric follow-up APAC (patient), per month; also in `pa`; the same APACs as `ab` from 2014 | [abo](abo.md), [APAC](apac.md) |
 | `abo_raw` | same | same, every column as text | [abo](abo.md#abo-vs-abo_raw) |
+| `acf` | `datasus fetch -T acf` (Aug/2014 onward) | one APAC for the creation of an arteriovenous fistula (dialysis access), per month; also in `pa` | [acf](acf.md), [APAC](apac.md) |
+| `acf_raw` | same | same, every column as text | [acf](acf.md#acf-vs-acf_raw) |
 | `ps` | `datasus fetch -T ps` (Nov/2012 onward) | one action line of a CAPS patient's monthly RAAS; also in `pa` | [ps](ps.md), [RAAS](raas.md) |
 | `ps_raw` | same | same, every column as text | [ps](ps.md#ps-vs-ps_raw) |
 | `sad` | `datasus fetch -T sad` (Apr/2012 to Oct/2018) | one action line of a home-care patient's monthly RAAS; also in `pa` | [sad](sad.md), [RAAS](raas.md) |
@@ -58,11 +60,12 @@ named after its code in lowercase: a typed view (`pa`) and a text-only `_raw` vi
 | AN | `an` | APAC Nefrologia (2008 to Jul/2014) | `an`, `an_raw` | [an](an.md) |
 | AB | `ab` | APAC Cirurgia Bariátrica (follow-up after surgery, 2008 to Apr/2017) | `ab`, `ab_raw` | [ab](ab.md) |
 | ABO | `abo` | APAC Acompanhamento Pós-Cirurgia Bariátrica (follow-up after surgery, 2014 onward; replaces AB) | `abo`, `abo_raw` | [abo](abo.md) |
+| ACF | `acf` | APAC Confecção de Fístula (arteriovenous fistula for dialysis, Aug/2014 onward) | `acf`, `acf_raw` | [acf](acf.md) |
 | PS | `ps` | RAAS Psicossocial (CAPS, Nov/2012 onward) | `ps`, `ps_raw` | [ps](ps.md) |
 | SAD | `sad` | RAAS Atenção Domiciliar (home care, Apr/2012 to Oct/2018) | `sad`, `sad_raw` | [sad](sad.md) |
 
-AM, AQ, AR, AD, ATD, AN, AB and ABO are the first of the APAC file types (authorisations for high-cost
-treatments: AM, AQ, AR, AD, ATD, AN, AB, ABO, ...). What an APAC is, how its months continue and the `AP_` columns they all
+AM, AQ, AR, AD, ATD, AN, AB, ABO and ACF are the first of the APAC file types (authorisations for high-cost
+treatments: AM, AQ, AR, AD, ATD, AN, AB, ABO, ACF, ...). What an APAC is, how its months continue and the `AP_` columns they all
 share are described once, on the [APAC file types](apac.md) page. PS and SAD are the RAAS file types
 (records of continuous care: CAPS, home care), described on [RAAS file types](raas.md).
 
@@ -149,6 +152,13 @@ abo ── AP_PRIPAL ──► procedimentos (codigo)    always 0301120056 (foll
  │ ── AP_AUTORIZ, AP_CMP ──► ab (same APACs, 2014-2017 and 2025)
  └─── AP_AUTORIZ, AP_CMP ──► pa (PA_AUTORIZ, PA_CMP, same competencia and uf)
 
+acf ── AP_PRIPAL ──► procedimentos (codigo)    always 0418010030 (arteriovenous fistula for haemodialysis)
+ │ ── AP_CIDCAS  ──► cid10 (codigo)
+ │ ── uf         ──► ufs (uf)
+ │ ── LEFT(AP_MUNPCN, 2) ──► ufs (ibge)
+ │ ── AP_CNSPCN  ──► atd, an, ad (AP_CNSPCN)    same patient's dialysis, catheters and grafts
+ └─── AP_AUTORIZ, AP_CMP ──► pa (PA_AUTORIZ, PA_CMP, same competencia and uf)
+
 ps ── PA_PROC_ID ──► procedimentos (codigo)    CAPS action (030108...)
  │ ── CIDPRI     ──► cid10 (codigo)
  │ ── uf         ──► ufs (uf)
@@ -171,8 +181,9 @@ rows with `PA_DOCORIG = 'P'` (see [am](am.md#how-am-relates-to-pa-double-countin
 [ad](ad.md#how-ad-relates-to-pa-double-counting)), `atd` rows (see
 [atd](atd.md#how-atd-relates-to-pa-double-counting)), `an` rows (see
 [an](an.md#how-an-relates-to-pa-double-counting)), `ab` rows (see
-[ab](ab.md#how-ab-relates-to-pa-double-counting)) and `abo` rows (see
-[abo](abo.md#how-abo-relates-to-pa-double-counting)); from 2014 `ab` rows are also `abo` rows. `ps` rows are the `pa` rows with
+[ab](ab.md#how-ab-relates-to-pa-double-counting)), `abo` rows (see
+[abo](abo.md#how-abo-relates-to-pa-double-counting)) and `acf` rows (see
+[acf](acf.md#how-acf-relates-to-pa-double-counting)); from 2014 `ab` rows are also `abo` rows. `ps` rows are the `pa` rows with
 `PA_DOCORIG = 'B'` (see [ps](ps.md#how-ps-relates-to-pa-double-counting)), and `sad` rows the `pa`
 rows with `PA_DOCORIG = 'A'` (see [sad](sad.md#how-sad-relates-to-pa-double-counting)).
 

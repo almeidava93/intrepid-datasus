@@ -39,7 +39,7 @@ digits of the code) to see what kind of care the rows are. Whole history, Jan/20
 | `0701` | Orthoses, prostheses and special materials (hearing aids, wheelchairs, cochlear implant processors) | 3.1 M | 5.1% | 4,005 | 18.0% |
 | `0303` | Clinical treatments (retina treatment with intravitreal medicine, from 2019) | 1.0 M | 1.7% | 602 | 2.7% |
 | `0309` | Specialised therapies (extracorporeal lithotripsy) | 0.9 M | 1.5% | 622 | 2.8% |
-| `0418` | Nephrology surgery (dialysis access: catheters, fistula interventions) | 0.6 M | 1.1% | 355 | 1.6% |
+| `0418` | Nephrology surgery (dialysis access: long-term catheter `0418010048`, Tenckhoff `0418010080`, fistulas with a graft `0418010013`/`0418010021`; plain fistula creation `0418010030` until Jul/2014, then [ACF](acf.md#acf-dialysis-and-ad)) | 0.6 M | 1.1% | 355 | 1.6% |
 | `0307` | Dental treatments (dentures: moulding/maintenance) | 0.4 M | 0.7% | 74 | 0.3% |
 | `0409` | Genitourinary surgery (vasectomy, ...) | 0.4 M | 0.7% | 134 | 0.6% |
 | `0206` | Tomography (PET-CT, from 2015) | 0.3 M | 0.5% | 633 | 2.8% |
@@ -141,8 +141,8 @@ Checked on five state-months, before and after the CAPS change:
 file, but not all of them: `PA_TPFIN` is `04` or `06` (as for AQ, AR and dialysis), and
 procedure groups are shared. In SE, May/2026, the `pa` `P` rows not in `ad` were AM medicines
 (`0604`, 25,704), chemotherapy/radiotherapy (`0304`, 6,097), dialysis (`0305`, 1,559),
-glaucoma follow-up (`0303`, 3,151; `030101`, 489), fistula creation (`041801`, 43, probably
-ACF) and the OCI care packages (`0903`, 61). So glaucoma APACs (`0301010102`, `030305001…`)
+glaucoma follow-up (`0303`, 3,151; `030101`, 489), fistula creation (`0418010030`, 43: the
+[ACF](acf.md) APACs, which AD held until Jul/2014) and the OCI care packages (`0903`, 61). So glaucoma APACs (`0301010102`, `030305001…`)
 and OCI packages (`09…`) are **not** in AD, though they are neither AM, AQ, AR nor dialysis:
 look for them in `pa`, or in the file types still to be added.
 

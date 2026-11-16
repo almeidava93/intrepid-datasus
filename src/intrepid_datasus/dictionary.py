@@ -222,7 +222,7 @@ APAC_COMMON = {
     "AP_CEPPCN": "Postcode (CEP) of the patient's address.",
     "AP_UFDIF": "Patient lives in another state than the facility (0 = same, 1 = different).",
     "AP_MNDIF": "Patient lives in another municipality than the facility (0 = same, 1 = different). "
-                "Unreliable (always 1 in AM, AQ, AR, AD, ATD, AN, AB and ABO): compare AP_MUNPCN with AP_UFMUN instead.",
+                "Unreliable (always 1 in AM, AQ, AR, AD, ATD, AN, AB, ABO and ACF): compare AP_MUNPCN with AP_UFMUN instead.",
     "AP_DTINIC": "Start of the APAC's validity period (YYYYMMDD).",
     "AP_DTFIM": "End of the APAC's validity period (YYYYMMDD); up to 3 months after AP_DTINIC.",
     "AP_TPATEN": "APAC type of care (tipo de atendimento / laudo); fixed per file type.",
@@ -1003,3 +1003,65 @@ ABO = apac("ABO", {
     "AP_REG_PES": "Patient regained weight (1 = yes, 0 = no): 1 on 2% of rows.",
     "AP_ADESAO": "Patient adheres to a healthy, balanced diet (1 = yes, 0 = no).",
 }, without=("AP_TIPPRE", "AP_TPATEN", "AP_DTOCOR", "AP_APACANT", "AP_CIDPRI", "AP_CIDSEC"))
+
+
+# ------------------------------------------------------------------- ACF
+# APAC de Confecção de Fístula Arteriovenosa: the surgical creation of an arteriovenous fistula (FAV), the
+# vascular access for haemodialysis; procedure 0418010030 on every row, files ACF<UF><YY><MM>.dbc, Aug/2014
+# onward (with ATD). Before Aug/2014 the same procedure was billed on AD APACs. One row per APAC: every APAC
+# is single (AP_TPAPAC = 3) and AP_AUTORIZ is unique over the whole history. One DBF layout, 55 columns:
+# the 45 shared AP_ columns under their usual names and 10 ACF_ columns of the fistula laudo; plus
+# AP_NATJUR last (56) in the Oct/2014 files and from Jul/2016. Every one of the 3,795 headers was probed.
+# Sources: DATASUS, "Informe Técnico SIASUS" (Jul/2019), section 3.4.7 "Layout do arquivo de APAC de
+# confecção de fístula arteriovenosa: ACFUFMM.DBF" (URL above); code values: DATASUS "Layout da interface
+# texto do APAC e do SIA - layout interno" (Apr/2014), part 20 "Parte variável Procedimentos do laudo de
+# Confecção de Fístula Arteriovenosa", and the TabWin definition APAC_Confeccao_de_Fistula.DEF in
+# TAB_SIA.zip (SIASUS/200801_/Auxiliar, Oct/2026). Values checked on every row (411,479).
+ACF_QUANTITY_COLS = APAC_QUANTITY_COLS
+ACF_VALUE_COLS = APAC_VALUE_COLS
+
+_ACF_SN = " (S = yes, N = no; always filled)."
+_ACF_DIA = ("in mm, as typed: '0', '0000', '3', '0003', '02,5', ... (text: strip zeros and read ',' as the decimal "
+            "point). 0 (not measured) on 37% of rows in 2014-2018 and 57% from 2022; median 3 mm otherwise. Equal "
+            "to the other diameter on 75% of rows, so mostly not a real measurement.")
+
+ACF = apac("ACF", {
+    "AP_PRIPAL": "Always 0418010030, creation of an arteriovenous fistula for haemodialysis (R$ 600, R$ 859.20 from "
+                 "Jul/2022); NULL on 205 rows of CE, Sep/2025. The fistula with a PTFE graft (0418010013), the "
+                 "long-term haemodialysis catheter (0418010048) and the other dialysis catheters (041801004x-099) "
+                 "are AD APACs, not ACF. Joins procedimentos.",
+    "AP_VL_AP": "Approved value, R$ (nominal) = PA_VALAPR of the APAC's single pa row (no secondary procedures): "
+                "600.00 until Jun/2022, 859.20 since (96% of rows); also 915.76 (SP, MG, BA, ...), multiples "
+                "(1,718.40 = 2 x 859.20) and 0 on 1,832 rows.",
+    "AP_TPAPAC": "Always 3 (single): one APAC is one fistula surgery, billed once. AP_AUTORIZ is unique.",
+    "AP_TPATEN": "APAC type of care. Always 12 in ACF.",
+    "AP_TPUPS": "Facility type, CNES codes: 36 = specialised clinic (dialysis centres, 58%), 05 = general hospital "
+                "(35%), 39 = diagnostic support unit (5%), 04, 07.",
+    "AP_CIDPRI": "Main diagnosis. Always '0000' in ACF (also in pa): the kidney disease code, if any, is in AP_CIDCAS.",
+    "AP_CIDSEC": "Secondary diagnosis. Always '0000' in ACF.",
+    "AP_CIDCAS": "Associated cause, ICD-10 (no dot), or '0000' (89% of rows); otherwise mostly N180 (end-stage "
+                 "kidney disease, 9%), N189, N188, I10. Joins cid10.",
+    "AP_MOTSAI": "Reason for exit: 18 = discharge, other reasons (68%), 12 = improved (13%), 15 = with return for "
+                 "follow-up, 51 = closed administratively, 11 = cured, 26 = change of procedure; 67 deaths.",
+    "AP_MNDIF": "Patient lives in another municipality than the facility. Always 1 in ACF (wrong, as in the other "
+                "APAC types): compare AP_MUNPCN with AP_UFMUN instead.",
+    "AP_CNSPCN": "Patient's CNS, ENCODED by DATASUS (the same encoding as ATD and AN, so it links a fistula to the "
+                 "patient's dialysis). Filled on every row until Mar/2024; then NULL or '{{{{{{{{{{{{{{{' on 2-3% "
+                 "of rows a month in 2024, 8-15% in 2025, 21% in Apr/2026 and 89% in Aug/2026.",
+    "AP_NATJUR": "Facility legal nature (IBGE CONCLA code). Only in the Oct/2014 files and from Jul/2016; NULL "
+                 "otherwise. The last column of the file. Equals pa's PA_NAT_JUR.",
+    "ACF_DUPLEX": "Previous duplex (Doppler) ultrasound of the arm vessels" + _ACF_SN + " S on 17-21% of rows.",
+    "ACF_USOCAT": "Previous use of a venous catheter or other venous accesses" + _ACF_SN + " S on 50% of rows in "
+                  "2014-2018, 63% from 2022.",
+    "ACF_PREFAV": "Previous arteriovenous fistula (FAV)" + _ACF_SN + " S on 37% of rows in 2014, 61% from 2022.",
+    "ACF_FLEBIT": "Phlebitis (S = yes, N = no; always filled). S on 6-12% of rows.",
+    "ACF_HEMATO": "Haematomas (S = yes, N = no; always filled). S on 5-10% of rows.",
+    "ACF_VEIAVI": "Visible vein (S = yes, N = no; always filled). S on 50% of rows until 2020, 66% from 2022.",
+    "ACF_PULSO": "Presence of pulse (S = yes, N = no; always filled). S on 58-62% until 2020, 75% from 2022.",
+    "ACF_VEIDIA": "Diameter of the vein, " + _ACF_DIA,
+    "ACF_ARTDIA": "Diameter of the artery, " + _ACF_DIA,
+    "ACF_FREMIT": "Thrill (frêmito, the vibration felt over the fistula's path), 1 to 4 as in the layout, which gives "
+                  "no labels: 1 (28% of rows), 2 (13%), 3 (45%), 4 (13%). Always filled. Rows with 1 mostly have no "
+                  "pulse, visible vein or previous fistula; 3 has them on 76-87%. The layout's 'pulse without "
+                  "thrill' flag (APA_PULFRE) has no column in the file.",
+})
